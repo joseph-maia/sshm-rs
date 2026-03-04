@@ -295,7 +295,7 @@ impl App {
         }
     }
 
-    fn clamp_offset(&mut self) {
+    pub fn clamp_offset(&mut self) {
         let visible = self.visible_rows();
         if self.selected < self.table_offset {
             self.table_offset = self.selected;
@@ -311,10 +311,10 @@ impl App {
     pub fn get_status_indicator(&self, host_name: &str) -> (&'static str, HostStatus) {
         let status = self.ping_manager.get_status(host_name);
         let indicator = match status {
-            HostStatus::Unknown => "?",
-            HostStatus::Connecting => "~",
-            HostStatus::Online(_) => "+",
-            HostStatus::Offline(_) => "-",
+            HostStatus::Unknown => "\u{25CB}",
+            HostStatus::Connecting => "\u{25CC}",
+            HostStatus::Online(_) => "\u{25CF}",
+            HostStatus::Offline(_) => "\u{25CF}",
         };
         (indicator, status)
     }
