@@ -218,6 +218,7 @@ fn handle_delete_key(app: &mut App, key: KeyEvent) {
                 if let Some(host) = app.hosts.iter().find(|h| h.name == *target).cloned() {
                     let _ = crate::config::delete_host(&host);
                     app.reload_hosts();
+                    app.show_toast("Host deleted");
                 }
             }
             app.delete_target = None;
@@ -313,6 +314,7 @@ fn handle_add_key(app: &mut App, key: KeyEvent) {
                         }
                     }
                     app.reload_hosts();
+                    app.show_toast("Host added successfully");
                     app.view_mode = ViewMode::List;
                 }
                 Err(e) => {
@@ -533,6 +535,7 @@ fn handle_edit_key(app: &mut App, key: KeyEvent) {
 
             app.reload_hosts();
             app.edit_target = None;
+            app.show_toast("Host updated");
             app.view_mode = ViewMode::List;
         }
         _ => {}
@@ -550,6 +553,7 @@ fn handle_password_key(app: &mut App, key: KeyEvent) {
             if let Some(ref target) = app.password_target.clone() {
                 if !app.password_input.is_empty() {
                     let _ = crate::credentials::save_password(target, &app.password_input);
+                    app.show_toast("Password saved");
                 }
             }
             app.password_target = None;
@@ -560,6 +564,7 @@ fn handle_password_key(app: &mut App, key: KeyEvent) {
             if let Some(ref target) = app.password_target.clone() {
                 if crate::credentials::has_password(target) {
                     let _ = crate::credentials::delete_password(target);
+                    app.show_toast("Password removed");
                 }
             }
             app.password_target = None;

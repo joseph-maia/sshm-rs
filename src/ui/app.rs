@@ -1,7 +1,7 @@
 use crate::config::SshHost;
 use crate::connectivity::{HostStatus, PingManager};
 use crate::history::HistoryManager;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ViewMode {
@@ -147,6 +147,10 @@ pub struct App {
     // Password overlay state
     pub password_input: String,
     pub password_target: Option<String>,
+
+    // Toast/flash message
+    pub toast_message: Option<String>,
+    pub toast_expires: Option<Instant>,
 }
 
 impl App {
@@ -175,6 +179,8 @@ impl App {
             edit_target: None,
             password_input: String::new(),
             password_target: None,
+            toast_message: None,
+            toast_expires: None,
         };
         app.hosts = app.sort_hosts(&hosts);
         app.filtered_hosts = app.hosts.clone();
@@ -202,6 +208,20 @@ impl App {
             })
             .collect();
         let _ = self.ping_manager.start_ping_all(hosts_data);
+    }
+
+    pub fn show_toast(&mut self, msg: &str) {
+        self.toast_message = Some(msg.to_string());
+        self.toast_expires = Some(Instant::now() + Duration::from_secs(3));
+    }
+
+    pub fn check_toast(&mut self) {
+        if let Some(expires) = self.toast_expires {
+            if Instant::now() >= expires {
+                self.toast_message = None;
+                self.toast_expires = None;
+            }
+        }
     }
 
     pub fn reset_add_form(&mut self) {

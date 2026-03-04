@@ -202,10 +202,26 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
-    let help_text = if app.search_mode {
-        " Type to filter | Enter: validate | Tab: switch | Esc: close search"
+    // Check if there's an active (non-expired) toast message
+    let show_toast = app.toast_message.is_some()
+        && app
+            .toast_expires
+            .map(|exp| std::time::Instant::now() < exp)
+            .unwrap_or(false);
+
+    let (left_text, left_style) = if show_toast {
+        let msg = format!(" {} ", app.toast_message.as_deref().unwrap_or(""));
+        (msg, Style::default().fg(styles::GREEN))
+    } else if app.search_mode {
+        (
+            " Type to filter | Enter: validate | Tab: switch | Esc: close search".to_string(),
+            styles::help_text_style(),
+        )
     } else {
-        " j/k: navigate | Enter: connect | /: search | s: sort | r: refresh | p: password | i: info | ?: help | q: quit"
+        (
+            " j/k: navigate | Enter: connect | /: search | s: sort | r: refresh | p: password | i: info | ?: help | q: quit".to_string(),
+            styles::help_text_style(),
+        )
     };
 
     let count = app.filtered_hosts.len();
@@ -214,7 +230,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
     let right = format!(" [{count}/{total}] Sort: {sort_label} ");
 
     // Calculate padding
-    let left_len = help_text.len();
+    let left_len = left_text.len();
     let right_len = right.len();
     let total_len = area.width as usize;
     let pad = if total_len > left_len + right_len {
@@ -224,7 +240,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
     };
 
     let bar = Line::from(vec![
-        Span::styled(help_text, styles::help_text_style()),
+        Span::styled(left_text, left_style),
         Span::raw(" ".repeat(pad)),
         Span::styled(right, Style::default().fg(styles::PRIMARY)),
     ]);

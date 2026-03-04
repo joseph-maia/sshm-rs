@@ -67,6 +67,9 @@ fn run_loop(
     app.height = size.height;
 
     loop {
+        // Clear expired toast messages
+        app.check_toast();
+
         // Draw
         terminal.draw(|f| {
             match app.view_mode {

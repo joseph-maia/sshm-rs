@@ -1,6 +1,6 @@
 // CLI module - command parsing and dispatch
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(
@@ -51,6 +51,11 @@ pub enum Commands {
         /// Search query
         query: String,
     },
+    /// Generate shell completions
+    Completions {
+        /// Shell to generate completions for
+        shell: clap_complete::Shell,
+    },
 }
 
 pub fn run(cli: Cli) -> Result<()> {
@@ -64,6 +69,11 @@ pub fn run(cli: Cli) -> Result<()> {
             Ok(())
         }
         Some(Commands::Search { query }) => run_search(&query, cli.config_file.as_deref()),
+        Some(Commands::Completions { shell }) => {
+            let mut cmd = Cli::command();
+            clap_complete::generate(shell, &mut cmd, "sshm-rs", &mut std::io::stdout());
+            Ok(())
+        }
         None => {
             if let Some(host_name) = cli.host {
                 connect_to_host(
