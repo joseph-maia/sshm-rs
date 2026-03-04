@@ -209,14 +209,15 @@ fn handle_add_key(app: &mut App, key: KeyEvent) {
                 return;
             }
 
-            let tags: Vec<String> = app.add_fields[5]
+            let password = app.add_fields[4].trim().to_string(); // password field
+            let tags: Vec<String> = app.add_fields[6]
                 .split(',')
                 .map(|t| t.trim().to_string())
                 .filter(|t| !t.is_empty())
                 .collect();
 
             let host = crate::config::SshHost {
-                name,
+                name: name.clone(),
                 hostname,
                 user: app.add_fields[2].trim().to_string(),
                 port: if app.add_fields[3].trim().is_empty() {
@@ -224,7 +225,7 @@ fn handle_add_key(app: &mut App, key: KeyEvent) {
                 } else {
                     app.add_fields[3].trim().to_string()
                 },
-                identity: app.add_fields[4].trim().to_string(),
+                identity: app.add_fields[5].trim().to_string(),
                 proxy_jump: String::new(),
                 proxy_command: String::new(),
                 options: String::new(),
@@ -237,6 +238,14 @@ fn handle_add_key(app: &mut App, key: KeyEvent) {
 
             match crate::config::add_host(&app.config_path, &host) {
                 Ok(()) => {
+                    // Save password to OS credential store if provided
+                    if !password.is_empty() {
+                        if let Err(e) = crate::credentials::save_password(&name, &password) {
+                            app.add_error = Some(format!("Host saved but password failed: {e}"));
+                            app.reload_hosts();
+                            return;
+                        }
+                    }
                     app.reload_hosts();
                     app.view_mode = ViewMode::List;
                 }

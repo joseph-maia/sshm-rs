@@ -160,13 +160,22 @@ fn ping_host_tcp(name: &str, hostname: &str, port: &str, timeout: Duration) -> P
 }
 
 /// Connect to an SSH host using the system ssh command.
-/// Optionally pass a custom config file path and extra args.
+/// If a saved password exists, uses SSH_ASKPASS mechanism to pass it.
 pub fn connect_ssh(
     host: &str,
     remote_command: &[String],
     config_file: Option<&str>,
     force_tty: bool,
 ) -> Result<()> {
+    let saved_password = crate::credentials::get_password(host);
+
+    // If we have a saved password, create a temp askpass helper
+    let _askpass_guard = if let Some(ref password) = saved_password {
+        Some(AskpassHelper::create(password)?)
+    } else {
+        None
+    };
+
     let mut cmd = std::process::Command::new("ssh");
 
     if let Some(cfg) = config_file {
@@ -177,12 +186,20 @@ pub fn connect_ssh(
         cmd.arg("-t");
     }
 
+    // If we have a password, set up SSH_ASKPASS environment
+    if let Some(ref guard) = _askpass_guard {
+        cmd.env("SSH_ASKPASS", &guard.script_path);
+        cmd.env("SSH_ASKPASS_REQUIRE", "force");
+        cmd.env("DISPLAY", ":0");
+    }
+
     cmd.arg(host);
 
     if !remote_command.is_empty() {
         cmd.args(remote_command);
     } else {
-        println!("Connecting to {host}...");
+        let has_pw = if saved_password.is_some() { " (using saved password)" } else { "" };
+        println!("Connecting to {host}...{has_pw}");
     }
 
     cmd.stdin(std::process::Stdio::inherit())
@@ -191,4 +208,36 @@ pub fn connect_ssh(
 
     let status = cmd.status()?;
     std::process::exit(status.code().unwrap_or(1));
+}
+
+/// Temporary askpass helper script that outputs the password.
+/// The script is deleted when the guard is dropped.
+struct AskpassHelper {
+    script_path: std::path::PathBuf,
+}
+
+impl AskpassHelper {
+    fn create(password: &str) -> Result<Self> {
+        let temp_dir = std::env::temp_dir();
+        let script_path = temp_dir.join("sshm_askpass.cmd");
+
+        // Write a .cmd script that echoes the password via an env var
+        // The password is passed as env var SSHM_PASS to avoid disk exposure
+        let script_content = "@echo off\necho %SSHM_PASS%\n";
+        std::fs::write(&script_path, script_content)?;
+
+        // Set the env var with the actual password for this process
+        std::env::set_var("SSHM_PASS", password);
+
+        Ok(Self { script_path })
+    }
+}
+
+impl Drop for AskpassHelper {
+    fn drop(&mut self) {
+        // Clean up the script file
+        let _ = std::fs::remove_file(&self.script_path);
+        // Clear the env var
+        std::env::remove_var("SSHM_PASS");
+    }
 }

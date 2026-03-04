@@ -18,6 +18,7 @@ pub enum AddField {
     Hostname,
     User,
     Port,
+    Password,
     Identity,
     Tags,
 }
@@ -29,9 +30,14 @@ impl AddField {
             AddField::Hostname => "Hostname",
             AddField::User => "User",
             AddField::Port => "Port",
+            AddField::Password => "Password",
             AddField::Identity => "IdentityFile",
             AddField::Tags => "Tags",
         }
+    }
+
+    pub fn is_secret(self) -> bool {
+        matches!(self, AddField::Password)
     }
 
     pub fn next(self) -> Self {
@@ -39,7 +45,8 @@ impl AddField {
             AddField::Name => AddField::Hostname,
             AddField::Hostname => AddField::User,
             AddField::User => AddField::Port,
-            AddField::Port => AddField::Identity,
+            AddField::Port => AddField::Password,
+            AddField::Password => AddField::Identity,
             AddField::Identity => AddField::Tags,
             AddField::Tags => AddField::Name,
         }
@@ -51,16 +58,18 @@ impl AddField {
             AddField::Hostname => AddField::Name,
             AddField::User => AddField::Hostname,
             AddField::Port => AddField::User,
-            AddField::Identity => AddField::Port,
+            AddField::Password => AddField::Port,
+            AddField::Identity => AddField::Password,
             AddField::Tags => AddField::Identity,
         }
     }
 
-    pub const ALL: [AddField; 6] = [
+    pub const ALL: [AddField; 7] = [
         AddField::Name,
         AddField::Hostname,
         AddField::User,
         AddField::Port,
+        AddField::Password,
         AddField::Identity,
         AddField::Tags,
     ];
@@ -125,7 +134,7 @@ pub struct App {
     pub delete_target: Option<String>,
 
     // Add form state
-    pub add_fields: [String; 6], // name, hostname, user, port, identity, tags
+    pub add_fields: [String; 7], // name, hostname, user, port, password, identity, tags
     pub add_focused: AddField,
     pub add_error: Option<String>,
     pub config_path: std::path::PathBuf,
@@ -164,6 +173,10 @@ impl App {
         self.add_fields[3] = "22".to_string(); // default port
         self.add_focused = AddField::Name;
         self.add_error = None;
+    }
+
+    pub fn add_field_value(&self, field: AddField) -> &str {
+        &self.add_fields[field as usize]
     }
 
     pub fn reload_hosts(&mut self) {

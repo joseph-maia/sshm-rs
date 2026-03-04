@@ -1,6 +1,7 @@
 mod cli;
 mod config;
 mod connectivity;
+mod credentials;
 mod history;
 mod ui;
 

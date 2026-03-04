@@ -333,6 +333,13 @@ fn draw_info_overlay(f: &mut Frame, app: &App, area: Rect) {
             Span::styled(tags_str, Style::default().fg(styles::FG)),
         ]),
         Line::from(vec![
+            Span::styled("  Password:  ", Style::default().fg(styles::MUTED)),
+            Span::styled(
+                if crate::credentials::has_password(&host.name) { "Saved" } else { "None" },
+                Style::default().fg(if crate::credentials::has_password(&host.name) { styles::GREEN } else { styles::MUTED }),
+            ),
+        ]),
+        Line::from(vec![
             Span::styled("  Status:    ", Style::default().fg(styles::MUTED)),
             Span::styled(indicator, Style::default().fg(styles::FG)),
         ]),
@@ -383,6 +390,13 @@ fn draw_add_form(f: &mut Frame, app: &App, area: Rect) {
         let is_focused = app.add_focused == field;
         let label = format!("  {:12} ", field.label());
         let value = &app.add_fields[idx];
+
+        // Mask password field
+        let display_value = if field.is_secret() && !value.is_empty() {
+            "*".repeat(value.len())
+        } else {
+            value.clone()
+        };
         let cursor = if is_focused { "_" } else { "" };
 
         let label_style = if is_focused {
@@ -391,18 +405,21 @@ fn draw_add_form(f: &mut Frame, app: &App, area: Rect) {
             Style::default().fg(styles::MUTED)
         };
 
-        let value_style = if is_focused {
-            Style::default().fg(styles::FG)
-        } else {
-            Style::default().fg(styles::FG)
-        };
-
+        let value_style = Style::default().fg(styles::FG);
         let indicator = if is_focused { "> " } else { "  " };
+
+        // Show lock icon for password field if it has a value
+        let suffix = if field.is_secret() && !value.is_empty() && !is_focused {
+            " [saved]"
+        } else {
+            ""
+        };
 
         lines.push(Line::from(vec![
             Span::styled(indicator, Style::default().fg(styles::PRIMARY)),
             Span::styled(label, label_style),
-            Span::styled(format!("{value}{cursor}"), value_style),
+            Span::styled(format!("{display_value}{cursor}"), value_style),
+            Span::styled(suffix, Style::default().fg(styles::GREEN)),
         ]));
     }
 
