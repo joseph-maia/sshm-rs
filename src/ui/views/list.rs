@@ -1,7 +1,7 @@
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Row, Table};
+use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table};
 use ratatui::Frame;
 
 use crate::connectivity::HostStatus;
@@ -199,6 +199,17 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
         .row_highlight_style(styles::table_selected_style());
 
     f.render_widget(table, area);
+
+    // Render scrollbar when there are more hosts than visible rows
+    let visible = app.visible_rows();
+    if app.filtered_hosts.len() > visible {
+        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+            .begin_symbol(Some("\u{25b2}"))
+            .end_symbol(Some("\u{25bc}"));
+        let mut scrollbar_state = ScrollbarState::new(app.filtered_hosts.len())
+            .position(app.selected);
+        f.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
+    }
 }
 
 fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {

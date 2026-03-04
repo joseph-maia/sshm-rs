@@ -1,4 +1,4 @@
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use std::time::Duration;
 
 use crate::ui::app::{AddField, App, ViewMode};
@@ -13,6 +13,9 @@ pub fn poll_event(app: &mut App) -> anyhow::Result<bool> {
                 if key.kind == KeyEventKind::Press {
                     handle_key(app, key);
                 }
+            }
+            Event::Mouse(mouse) => {
+                handle_mouse(app, mouse);
             }
             Event::Resize(w, h) => {
                 app.width = w;
@@ -40,6 +43,34 @@ fn handle_key(app: &mut App, key: KeyEvent) {
         ViewMode::Add => handle_add_key(app, key),
         ViewMode::Edit => handle_edit_key(app, key),
         ViewMode::Password => handle_password_key(app, key),
+    }
+}
+
+fn handle_mouse(app: &mut App, mouse: MouseEvent) {
+    // Only handle mouse events in List view mode when not in search mode
+    if app.view_mode != ViewMode::List {
+        return;
+    }
+
+    match mouse.kind {
+        MouseEventKind::ScrollUp => {
+            app.move_up();
+        }
+        MouseEventKind::ScrollDown => {
+            app.move_down();
+        }
+        MouseEventKind::Down(MouseButton::Left) => {
+            // Layout: title (5 lines) + search bar (3 lines) + table border (1 line) + header (1 line) = 10 lines offset
+            let table_top_offset: u16 = 10;
+            if mouse.row >= table_top_offset {
+                let clicked_index = app.table_offset + (mouse.row - table_top_offset) as usize;
+                if clicked_index < app.filtered_hosts.len() {
+                    app.selected = clicked_index;
+                    app.clamp_offset();
+                }
+            }
+        }
+        _ => {}
     }
 }
 
