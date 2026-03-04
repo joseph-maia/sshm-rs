@@ -112,6 +112,11 @@ pub struct App {
     pub selected: usize,
     pub table_offset: usize,
 
+    // Multi-select
+    pub selected_hosts: std::collections::HashSet<String>,
+    #[allow(dead_code)]
+    pub batch_mode: bool,
+
     // Search
     pub search_query: String,
     pub search_mode: bool,
@@ -198,6 +203,8 @@ impl App {
             filtered_hosts: Vec::new(),
             selected: 0,
             table_offset: 0,
+            selected_hosts: std::collections::HashSet::new(),
+            batch_mode: false,
             search_query: String::new(),
             search_mode: false,
             view_mode: ViewMode::List,
@@ -484,6 +491,31 @@ impl App {
 
     pub fn selected_host(&self) -> Option<&SshHost> {
         self.filtered_hosts.get(self.selected)
+    }
+
+    pub fn toggle_select(&mut self) {
+        if let Some(host) = self.selected_host() {
+            let name = host.name.clone();
+            if self.selected_hosts.contains(&name) {
+                self.selected_hosts.remove(&name);
+            } else {
+                self.selected_hosts.insert(name);
+            }
+        }
+    }
+
+    pub fn select_all(&mut self) {
+        for host in &self.filtered_hosts {
+            self.selected_hosts.insert(host.name.clone());
+        }
+    }
+
+    pub fn clear_selection(&mut self) {
+        self.selected_hosts.clear();
+    }
+
+    pub fn has_selection(&self) -> bool {
+        !self.selected_hosts.is_empty()
     }
 
     pub fn get_status_indicator(&self, host_name: &str) -> (&'static str, HostStatus) {

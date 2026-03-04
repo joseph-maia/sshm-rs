@@ -220,7 +220,8 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
         .enumerate()
         .map(|(i, host)| {
             let abs_idx = app.table_offset + i;
-            let is_selected = abs_idx == app.selected;
+            let is_cursor = abs_idx == app.selected;
+            let is_multi_selected = app.selected_hosts.contains(&host.name);
 
             let (indicator, status) = app.get_status_indicator(&host.name);
             let status_style = match status {
@@ -242,20 +243,29 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
                 host.port.clone()
             };
 
+            // Build status column: show checkmark for multi-selected, normal indicator otherwise
+            let status_span = if is_multi_selected {
+                Span::styled("\u{2713} ", Style::default().fg(styles::cyan()))
+            } else {
+                Span::styled(indicator.to_string(), status_style)
+            };
+
             let name_display = if app.favorites.is_favorite(&host.name) {
                 format!("\u{2605} {}", host.name)
             } else {
                 host.name.clone()
             };
 
-            let name_style = if app.favorites.is_favorite(&host.name) {
+            let name_style = if is_multi_selected {
+                Style::default().fg(styles::cyan())
+            } else if app.favorites.is_favorite(&host.name) {
                 Style::default().fg(styles::yellow())
             } else {
                 Style::default().fg(styles::fg())
             };
 
             let cells = vec![
-                Span::styled(indicator.to_string(), status_style),
+                status_span,
                 Span::styled(name_display, name_style),
                 Span::styled(host.user.clone(), Style::default().fg(styles::fg())),
                 Span::styled(host.hostname.clone(), Style::default().fg(styles::cyan())),
@@ -263,9 +273,11 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
                 Span::styled(tags_str, Style::default().fg(styles::purple())),
             ];
 
-            let row = Row::new(cells.into_iter().map(|s| Line::from(s)));
-            if is_selected {
+            let row = Row::new(cells);
+            if is_cursor {
                 row.style(styles::table_selected_style())
+            } else if is_multi_selected {
+                row.style(styles::multi_selected_style())
             } else {
                 row.style(styles::table_row_style())
             }
@@ -322,6 +334,12 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             " Type to filter | Enter: validate | Tab: switch | Esc: close search".to_string(),
             styles::help_text_style(),
         )
+    } else if app.has_selection() {
+        let count = app.selected_hosts.len();
+        (
+            format!(" {count} selected | Space: toggle | d: delete | Ctrl+a: select all | Esc: clear"),
+            Style::default().fg(styles::cyan()),
+        )
     } else {
         (
             " j/k | Enter | / | s | f | F | y | t | r | p | i | ? | q".to_string(),
@@ -372,9 +390,17 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_delete_confirm(f: &mut Frame, app: &App, area: Rect) {
-    let host_name = app.delete_target.as_deref().unwrap_or("???");
+    let target = app.delete_target.as_deref().unwrap_or("???");
+    let is_batch = target.starts_with("__batch__:");
 
-    let popup_width = 50u16.min(area.width.saturating_sub(4));
+    let confirm_line = if is_batch {
+        let count = app.selected_hosts.len();
+        format!("Delete {count} selected host{}?", if count == 1 { "" } else { "s" })
+    } else {
+        format!("Delete host '{target}'?")
+    };
+
+    let popup_width = 54u16.min(area.width.saturating_sub(4));
     let popup_height = 7u16;
     let x = (area.width.saturating_sub(popup_width)) / 2;
     let y = (area.height.saturating_sub(popup_height)) / 2;
@@ -382,13 +408,15 @@ fn draw_delete_confirm(f: &mut Frame, app: &App, area: Rect) {
 
     f.render_widget(Clear, popup_area);
 
+    let title = if is_batch { "DELETE SELECTED HOSTS" } else { "DELETE SSH HOST" };
+
     let lines = vec![
         Line::from(Span::styled(
-            "DELETE SSH HOST",
+            title,
             styles::delete_title_style(),
         )),
         Line::from(""),
-        Line::from(format!("Delete host '{host_name}'?")),
+        Line::from(confirm_line),
         Line::from(""),
         Line::from(Span::styled(
             "This action cannot be undone.",

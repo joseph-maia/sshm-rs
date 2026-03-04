@@ -7,8 +7,8 @@ use ratatui::Frame;
 use crate::ui::styles;
 
 pub fn draw(f: &mut Frame, area: Rect) {
-    let popup_width = 64u16.min(area.width.saturating_sub(4));
-    let popup_height = 32u16.min(area.height.saturating_sub(4));
+    let popup_width = 68u16.min(area.width.saturating_sub(4));
+    let popup_height = 38u16.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(popup_width)) / 2;
     let y = (area.height.saturating_sub(popup_height)) / 2;
     let popup_area = Rect::new(x, y, popup_width, popup_height);
@@ -65,6 +65,26 @@ pub fn draw(f: &mut Frame, area: Rect) {
         Line::from(vec![
             Span::styled("  Tab      ", key_style),
             Span::styled("Switch focus (search <-> table)", desc_style),
+        ]),
+        Line::from(""),
+        // Multi-select
+        Line::from(Span::styled("Multi-Select", section_style)),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  Space    ", key_style),
+            Span::styled("Toggle select host, move down", desc_style),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+a   ", key_style),
+            Span::styled("Select all visible hosts", desc_style),
+        ]),
+        Line::from(vec![
+            Span::styled("  d        ", key_style),
+            Span::styled("Delete all selected hosts (when selection active)", desc_style),
+        ]),
+        Line::from(vec![
+            Span::styled("  Esc      ", key_style),
+            Span::styled("Clear selection", desc_style),
         ]),
         Line::from(""),
         // Host management

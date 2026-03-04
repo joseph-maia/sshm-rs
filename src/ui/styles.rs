@@ -130,6 +130,12 @@ pub fn table_selected_style() -> Style {
         .add_modifier(Modifier::BOLD)
 }
 
+pub fn multi_selected_style() -> Style {
+    Style::default()
+        .fg(cyan())
+        .bg(Color::Rgb(0x1e, 0x2a, 0x3a))
+}
+
 pub fn search_focused_style() -> Style {
     Style::default().fg(primary())
 }

@@ -131,11 +131,20 @@ fn handle_table_key(app: &mut App, key: KeyEvent) {
             app.should_quit = true;
         }
         KeyCode::Esc => {
-            // Clear search query if one is active, otherwise do nothing
-            if !app.search_query.is_empty() {
+            // Clear selection first if active, otherwise clear search query
+            if app.has_selection() {
+                app.clear_selection();
+            } else if !app.search_query.is_empty() {
                 app.search_query.clear();
                 app.apply_filter();
             }
+        }
+        KeyCode::Char(' ') => {
+            app.toggle_select();
+            app.move_down();
+        }
+        KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.select_all();
         }
         KeyCode::Char('/') => {
             app.search_mode = true;
@@ -184,7 +193,10 @@ fn handle_table_key(app: &mut App, key: KeyEvent) {
             }
         }
         KeyCode::Enter => {
-            if let Some(host) = app.selected_host() {
+            if app.has_selection() {
+                let count = app.selected_hosts.len();
+                app.show_toast(&format!("{count} host{} selected — d: delete | Esc: clear", if count == 1 { "" } else { "s" }));
+            } else if let Some(host) = app.selected_host() {
                 app.connect_host = Some(host.name.clone());
                 app.should_quit = true;
             }
@@ -194,7 +206,12 @@ fn handle_table_key(app: &mut App, key: KeyEvent) {
             app.apply_filter();
         }
         KeyCode::Char('d') => {
-            if let Some(host) = app.selected_host() {
+            if app.has_selection() {
+                // Batch delete: encode count in delete_target as sentinel "__batch__:<count>"
+                let count = app.selected_hosts.len();
+                app.delete_target = Some(format!("__batch__:{count}"));
+                app.view_mode = ViewMode::DeleteConfirm;
+            } else if let Some(host) = app.selected_host() {
                 app.delete_target = Some(host.name.clone());
                 app.view_mode = ViewMode::DeleteConfirm;
             }
@@ -375,11 +392,25 @@ fn handle_delete_key(app: &mut App, key: KeyEvent) {
             app.view_mode = ViewMode::List;
         }
         KeyCode::Enter | KeyCode::Char('y') => {
-            if let Some(ref target) = app.delete_target {
-                if let Some(host) = app.hosts.iter().find(|h| h.name == *target).cloned() {
-                    let _ = crate::config::delete_host(&host);
+            if let Some(ref target) = app.delete_target.clone() {
+                if target.starts_with("__batch__:") {
+                    // Batch delete all selected hosts
+                    let names: Vec<String> = app.selected_hosts.iter().cloned().collect();
+                    let count = names.len();
+                    for name in &names {
+                        if let Some(host) = app.hosts.iter().find(|h| h.name == *name).cloned() {
+                            let _ = crate::config::delete_host(&host);
+                        }
+                    }
+                    app.clear_selection();
                     app.reload_hosts();
-                    app.show_toast("Host deleted");
+                    app.show_toast(&format!("Deleted {count} host{}", if count == 1 { "" } else { "s" }));
+                } else {
+                    if let Some(host) = app.hosts.iter().find(|h| h.name == *target).cloned() {
+                        let _ = crate::config::delete_host(&host);
+                        app.reload_hosts();
+                        app.show_toast("Host deleted");
+                    }
                 }
             }
             app.delete_target = None;
