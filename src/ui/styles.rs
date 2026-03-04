@@ -8,7 +8,10 @@ pub const PRIMARY: Color = Color::Rgb(0x7a, 0xa2, 0xf7); // blue
 pub const GREEN: Color = Color::Rgb(0x9e, 0xce, 0x6a);
 pub const RED: Color = Color::Rgb(0xf7, 0x76, 0x8e);
 pub const YELLOW: Color = Color::Rgb(0xe0, 0xaf, 0x68);
-pub const MUTED: Color = Color::Rgb(0x56, 0x5f, 0x89);
+pub const MUTED: Color = Color::Rgb(0x73, 0x7a, 0xa2);
+pub const CYAN: Color = Color::Rgb(0x7d, 0xcf, 0xff);
+pub const PURPLE: Color = Color::Rgb(0xbb, 0x9a, 0xf7);
+pub const ORANGE: Color = Color::Rgb(0xff, 0x9e, 0x64);
 pub const SELECTION_BG: Color = Color::Rgb(0x36, 0x4a, 0x82);
 
 pub fn header_style() -> Style {

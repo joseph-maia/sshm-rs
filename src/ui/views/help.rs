@@ -1,14 +1,14 @@
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph};
 use ratatui::Frame;
 
 use crate::ui::styles;
 
 pub fn draw(f: &mut Frame, area: Rect) {
     let popup_width = 64u16.min(area.width.saturating_sub(4));
-    let popup_height = 24u16.min(area.height.saturating_sub(4));
+    let popup_height = 28u16.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(popup_width)) / 2;
     let y = (area.height.saturating_sub(popup_height)) / 2;
     let popup_area = Rect::new(x, y, popup_width, popup_height);
@@ -41,6 +41,22 @@ pub fn draw(f: &mut Frame, area: Rect) {
         Line::from(vec![
             Span::styled("  k / Up   ", key_style),
             Span::styled("Move up", desc_style),
+        ]),
+        Line::from(vec![
+            Span::styled("  PgUp     ", key_style),
+            Span::styled("Page up", desc_style),
+        ]),
+        Line::from(vec![
+            Span::styled("  PgDn     ", key_style),
+            Span::styled("Page down", desc_style),
+        ]),
+        Line::from(vec![
+            Span::styled("  Home     ", key_style),
+            Span::styled("Jump to first host", desc_style),
+        ]),
+        Line::from(vec![
+            Span::styled("  End / G  ", key_style),
+            Span::styled("Jump to last host", desc_style),
         ]),
         Line::from(vec![
             Span::styled("  /        ", key_style),
@@ -87,7 +103,7 @@ pub fn draw(f: &mut Frame, area: Rect) {
             Span::styled("Show this help", desc_style),
         ]),
         Line::from(vec![
-            Span::styled("  q/Esc    ", key_style),
+            Span::styled("  q        ", key_style),
             Span::styled("Quit", desc_style),
         ]),
         Line::from(""),
@@ -102,6 +118,7 @@ pub fn draw(f: &mut Frame, area: Rect) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
                 .border_style(styles::border_focused_style())
                 .style(Style::default().bg(styles::BG).fg(styles::FG)),
         );

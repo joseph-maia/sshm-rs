@@ -73,8 +73,15 @@ fn handle_search_key(app: &mut App, key: KeyEvent) {
 
 fn handle_table_key(app: &mut App, key: KeyEvent) {
     match key.code {
-        KeyCode::Char('q') | KeyCode::Esc => {
+        KeyCode::Char('q') => {
             app.should_quit = true;
+        }
+        KeyCode::Esc => {
+            // Clear search query if one is active, otherwise do nothing
+            if !app.search_query.is_empty() {
+                app.search_query.clear();
+                app.apply_filter();
+            }
         }
         KeyCode::Char('/') => {
             app.search_mode = true;
@@ -92,13 +99,34 @@ fn handle_table_key(app: &mut App, key: KeyEvent) {
             app.selected = 0;
             app.table_offset = 0;
         }
-        KeyCode::End => {
+        KeyCode::End | KeyCode::Char('G') => {
             if !app.filtered_hosts.is_empty() {
                 app.selected = app.filtered_hosts.len() - 1;
                 let visible = app.visible_rows();
                 if app.filtered_hosts.len() > visible {
                     app.table_offset = app.filtered_hosts.len() - visible;
                 }
+            }
+        }
+        KeyCode::PageUp => {
+            let page = app.visible_rows();
+            if app.selected >= page {
+                app.selected -= page;
+            } else {
+                app.selected = 0;
+            }
+            app.clamp_offset();
+        }
+        KeyCode::PageDown => {
+            let page = app.visible_rows();
+            if !app.filtered_hosts.is_empty() {
+                let last = app.filtered_hosts.len() - 1;
+                if app.selected + page <= last {
+                    app.selected += page;
+                } else {
+                    app.selected = last;
+                }
+                app.clamp_offset();
             }
         }
         KeyCode::Enter => {
