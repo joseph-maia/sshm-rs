@@ -1,5 +1,6 @@
 use crate::config::SshHost;
 use crate::connectivity::{HostStatus, PingManager};
+use crate::favorites::FavoritesManager;
 use crate::history::HistoryManager;
 use nucleo_matcher::pattern::{AtomKind, CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config, Matcher};
@@ -157,11 +158,15 @@ pub struct App {
     // Double-click detection
     pub last_click_time: Option<Instant>,
     pub last_click_index: Option<usize>,
+
+    // Favorites
+    pub favorites: FavoritesManager,
 }
 
 impl App {
     pub fn new(hosts: Vec<SshHost>, history: Option<HistoryManager>, config_path: std::path::PathBuf) -> Self {
         let ping_manager = PingManager::new(Duration::from_secs(5));
+        let favorites = FavoritesManager::load().unwrap_or_default();
         let mut app = App {
             hosts: Vec::new(),
             filtered_hosts: Vec::new(),
@@ -189,6 +194,7 @@ impl App {
             toast_expires: None,
             last_click_time: None,
             last_click_index: None,
+            favorites,
         };
         app.hosts = app.sort_hosts(&hosts);
         app.filtered_hosts = app.hosts.clone();
@@ -252,8 +258,10 @@ impl App {
     }
 
     pub fn visible_rows(&self) -> usize {
-        // Reserve lines for: header art (5) + search bar (3) + table header (2) + status bar (1) + padding (2)
-        let reserved = 13u16;
+        // When terminal height < 20, compact title uses 1 line instead of 5
+        // Compact: title (1) + search bar (3) + table header (2) + status bar (1) + padding (2) = 9
+        // Full:    title (5) + search bar (3) + table header (2) + status bar (1) + padding (2) = 13
+        let reserved = if self.height < 20 { 9u16 } else { 13u16 };
         if self.height > reserved {
             (self.height - reserved) as usize
         } else {
@@ -280,7 +288,19 @@ impl App {
                 }
             }
         }
-        sorted
+
+        // Stable partition: favorites first, preserving sort order within each group
+        let mut favs: Vec<SshHost> = Vec::new();
+        let mut rest: Vec<SshHost> = Vec::new();
+        for host in sorted {
+            if self.favorites.is_favorite(&host.name) {
+                favs.push(host);
+            } else {
+                rest.push(host);
+            }
+        }
+        favs.extend(rest);
+        favs
     }
 
     pub fn apply_filter(&mut self) {

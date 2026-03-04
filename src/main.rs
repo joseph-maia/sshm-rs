@@ -2,6 +2,7 @@ mod cli;
 mod config;
 mod connectivity;
 mod credentials;
+mod favorites;
 mod history;
 mod ui;
 

@@ -60,8 +60,9 @@ fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             app.move_down();
         }
         MouseEventKind::Down(MouseButton::Left) => {
-            // Layout: title (5 lines) + search bar (3 lines) + table border (1 line) + header (1 line) = 10 lines offset
-            let table_top_offset: u16 = 10;
+            // Layout: title (5 or 1 lines) + search bar (3 lines) + table border (1 line) + header (1 line)
+            let title_height: u16 = if app.height < 20 { 1 } else { 5 };
+            let table_top_offset: u16 = title_height + 3 + 1 + 1;
             if mouse.row >= table_top_offset {
                 let clicked_index = app.table_offset + (mouse.row - table_top_offset) as usize;
                 if clicked_index < app.filtered_hosts.len() {
@@ -210,6 +211,18 @@ fn handle_table_key(app: &mut App, key: KeyEvent) {
                 app.password_target = Some(host.name.clone());
                 app.password_input.clear();
                 app.view_mode = ViewMode::Password;
+            }
+        }
+        KeyCode::Char('f') => {
+            if let Some(host) = app.selected_host().cloned() {
+                let was_favorite = app.favorites.is_favorite(&host.name);
+                let _ = app.favorites.toggle(&host.name);
+                app.apply_filter();
+                if was_favorite {
+                    app.show_toast("Removed from favorites");
+                } else {
+                    app.show_toast("Added to favorites");
+                }
             }
         }
         KeyCode::Char('r') => {
