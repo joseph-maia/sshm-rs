@@ -22,19 +22,43 @@ pub fn draw(f: &mut Frame, app: &App) {
     let bg_block = Block::default().style(Style::default().bg(styles::BG));
     f.render_widget(bg_block, area);
 
-    // Main layout: title, search, table, status bar
-    let chunks = Layout::vertical([
-        Constraint::Length(5),  // ASCII title
-        Constraint::Length(3),  // Search bar
-        Constraint::Min(3),    // Table
-        Constraint::Length(1), // Status bar
-    ])
-    .split(area);
+    if app.show_sidebar {
+        // Split horizontally: sidebar | main content
+        let main_chunks = Layout::horizontal([
+            Constraint::Length(20), // sidebar (fixed width)
+            Constraint::Min(40),   // main content
+        ])
+        .split(area);
 
-    draw_title(f, chunks[0]);
-    draw_search_bar(f, app, chunks[1]);
-    draw_table(f, app, chunks[2]);
-    draw_status_bar(f, app, chunks[3]);
+        draw_sidebar(f, app, main_chunks[0]);
+
+        let chunks = Layout::vertical([
+            Constraint::Length(5),  // ASCII title
+            Constraint::Length(3),  // Search bar
+            Constraint::Min(3),    // Table
+            Constraint::Length(1), // Status bar
+        ])
+        .split(main_chunks[1]);
+
+        draw_title(f, chunks[0]);
+        draw_search_bar(f, app, chunks[1]);
+        draw_table(f, app, chunks[2]);
+        draw_status_bar(f, app, chunks[3]);
+    } else {
+        // Standard layout without sidebar
+        let chunks = Layout::vertical([
+            Constraint::Length(5),  // ASCII title
+            Constraint::Length(3),  // Search bar
+            Constraint::Min(3),    // Table
+            Constraint::Length(1), // Status bar
+        ])
+        .split(area);
+
+        draw_title(f, chunks[0]);
+        draw_search_bar(f, app, chunks[1]);
+        draw_table(f, app, chunks[2]);
+        draw_status_bar(f, app, chunks[3]);
+    }
 
     // Overlay views
     match app.view_mode {
@@ -52,6 +76,55 @@ fn draw_title(f: &mut Frame, area: Rect) {
         .style(styles::header_style())
         .alignment(Alignment::Center);
     f.render_widget(title, area);
+}
+
+fn draw_sidebar(f: &mut Frame, app: &App, area: Rect) {
+    let border_style = if app.sidebar_focused {
+        styles::border_focused_style()
+    } else {
+        styles::border_unfocused_style()
+    };
+
+    // "All Hosts" item at index 0
+    let all_hosts_style = if app.sidebar_active_tag.is_none() {
+        Style::default().fg(styles::PRIMARY).add_modifier(Modifier::BOLD)
+    } else if app.sidebar_focused && app.sidebar_selected == 0 {
+        Style::default().fg(styles::FG).bg(styles::SELECTION_BG)
+    } else {
+        Style::default().fg(styles::FG)
+    };
+
+    let mut items: Vec<Line> = vec![
+        Line::from(Span::styled("  All Hosts", all_hosts_style)),
+    ];
+
+    for (i, tag) in app.sidebar_tags.iter().enumerate() {
+        let sidebar_index = i + 1; // +1 because "All Hosts" is index 0
+        let is_selected = app.sidebar_focused && sidebar_index == app.sidebar_selected;
+        let is_active = app.sidebar_active_tag.as_deref() == Some(tag);
+
+        let style = if is_active {
+            Style::default().fg(styles::PRIMARY).add_modifier(Modifier::BOLD)
+        } else if is_selected {
+            Style::default().fg(styles::FG).bg(styles::SELECTION_BG)
+        } else {
+            Style::default().fg(styles::PURPLE)
+        };
+
+        let prefix = if is_active { "\u{25cf} " } else { "  " };
+        items.push(Line::from(Span::styled(format!("{prefix}#{tag}"), style)));
+    }
+
+    let list = Paragraph::new(items)
+        .block(
+            Block::default()
+                .title(" Tags ")
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(border_style)
+                .style(Style::default().bg(styles::BG)),
+        );
+    f.render_widget(list, area);
 }
 
 fn draw_search_bar(f: &mut Frame, app: &App, area: Rect) {
@@ -84,7 +157,7 @@ fn draw_search_bar(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_table(f: &mut Frame, app: &App, area: Rect) {
-    let border_style = if !app.search_mode {
+    let border_style = if !app.search_mode && !app.sidebar_focused {
         styles::border_focused_style()
     } else {
         styles::border_unfocused_style()
@@ -230,7 +303,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         )
     } else {
         (
-            " j/k: navigate | Enter: connect | /: search | s: sort | r: refresh | p: password | i: info | ?: help | q: quit".to_string(),
+            " j/k: navigate | Enter: connect | /: search | s: sort | t: tags | r: refresh | p: password | i: info | ?: help | q: quit".to_string(),
             styles::help_text_style(),
         )
     };

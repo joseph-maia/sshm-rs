@@ -93,6 +93,8 @@ fn handle_mouse(app: &mut App, mouse: MouseEvent) {
 fn handle_list_key(app: &mut App, key: KeyEvent) {
     if app.search_mode {
         handle_search_key(app, key);
+    } else if app.sidebar_focused {
+        handle_sidebar_key(app, key);
     } else {
         handle_table_key(app, key);
     }
@@ -216,6 +218,17 @@ fn handle_table_key(app: &mut App, key: KeyEvent) {
             // Refresh connectivity status for all hosts
             app.start_ping();
         }
+        KeyCode::Char('t') => {
+            app.show_sidebar = !app.show_sidebar;
+            if !app.show_sidebar {
+                app.sidebar_focused = false;
+            }
+        }
+        KeyCode::Left => {
+            if app.show_sidebar {
+                app.sidebar_focused = true;
+            }
+        }
         KeyCode::Char('e') => {
             if let Some(host) = app.selected_host().cloned() {
                 // Pre-populate form fields with current host values
@@ -239,6 +252,58 @@ fn handle_table_key(app: &mut App, key: KeyEvent) {
                 app.edit_target = Some(host.name.clone());
                 app.view_mode = ViewMode::Edit;
             }
+        }
+        _ => {}
+    }
+}
+
+fn handle_sidebar_key(app: &mut App, key: KeyEvent) {
+    // Total items: "All Hosts" (index 0) + tags (indices 1..=len)
+    let total_items = app.sidebar_tags.len() + 1;
+
+    match key.code {
+        KeyCode::Down | KeyCode::Char('j') => {
+            if app.sidebar_selected + 1 < total_items {
+                app.sidebar_selected += 1;
+            }
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            if app.sidebar_selected > 0 {
+                app.sidebar_selected -= 1;
+            }
+        }
+        KeyCode::Enter => {
+            if app.sidebar_selected == 0 {
+                // "All Hosts" selected -> clear filter
+                app.sidebar_active_tag = None;
+            } else {
+                let tag_index = app.sidebar_selected - 1;
+                if let Some(tag) = app.sidebar_tags.get(tag_index).cloned() {
+                    if app.sidebar_active_tag.as_deref() == Some(&tag) {
+                        // Toggle off: same tag selected again
+                        app.sidebar_active_tag = None;
+                    } else {
+                        app.sidebar_active_tag = Some(tag);
+                    }
+                }
+            }
+            app.apply_filter();
+        }
+        KeyCode::Esc => {
+            app.sidebar_active_tag = None;
+            app.sidebar_focused = false;
+            app.show_sidebar = false;
+            app.apply_filter();
+        }
+        KeyCode::Right | KeyCode::Tab => {
+            app.sidebar_focused = false;
+        }
+        KeyCode::Char('t') => {
+            app.show_sidebar = false;
+            app.sidebar_focused = false;
+        }
+        KeyCode::Char('q') => {
+            app.should_quit = true;
         }
         _ => {}
     }

@@ -30,6 +30,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - Double-click to connect
   - Visual scrollbar (▲/▼) when list overflows
 
+- **Tag filtering sidebar** (`t` key in TUI)
+  - Toggle sidebar panel with unique tags extracted from all hosts
+  - Click/Enter to filter host list by tag (toggle behavior)
+  - "All Hosts" option to clear tag filter
+  - Left/Right arrow keys to switch focus between sidebar and table
+  - Visual indicators: active tag (bold blue ●), selected (highlight), tags (purple)
+  - Sidebar state integrates with existing search/sort filters
+
 - **Toast/flash messages**
   - Feedback after operations: "Host added", "Host deleted", "Password saved", etc.
   - Auto-dismiss after 3 seconds
