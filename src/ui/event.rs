@@ -237,6 +237,24 @@ fn handle_table_key(app: &mut App, key: KeyEvent) {
                 app.view_mode = ViewMode::PortForward;
             }
         }
+        KeyCode::Char('y') => {
+            if let Some(host) = app.selected_host() {
+                let text = if host.user.is_empty() {
+                    host.hostname.clone()
+                } else {
+                    format!("{}@{}", host.user, host.hostname)
+                };
+                if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                    if clipboard.set_text(&text).is_ok() {
+                        app.show_toast(&format!("Copied: {text}"));
+                    } else {
+                        app.show_toast("Failed to copy to clipboard");
+                    }
+                } else {
+                    app.show_toast("Clipboard not available");
+                }
+            }
+        }
         KeyCode::Char('e') => {
             if let Some(host) = app.selected_host().cloned() {
                 // Pre-populate form fields with current host values

@@ -51,6 +51,20 @@ pub enum Commands {
         /// Search query
         query: String,
     },
+    /// Export hosts to JSON file
+    Export {
+        /// Output file path (default: stdout)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+    /// Import hosts from JSON file
+    Import {
+        /// Input file path
+        file: String,
+        /// Skip duplicate hosts instead of erroring
+        #[arg(long)]
+        skip_duplicates: bool,
+    },
     /// Generate shell completions
     Completions {
         /// Shell to generate completions for
@@ -69,6 +83,8 @@ pub fn run(cli: Cli) -> Result<()> {
             Ok(())
         }
         Some(Commands::Search { query }) => run_search(&query, cli.config_file.as_deref()),
+        Some(Commands::Export { output }) => run_export(output.as_deref(), cli.config_file.as_deref()),
+        Some(Commands::Import { file, skip_duplicates }) => run_import(&file, skip_duplicates, cli.config_file.as_deref()),
         Some(Commands::Completions { shell }) => {
             let mut cmd = Cli::command();
             clap_complete::generate(shell, &mut cmd, "sshm-rs", &mut std::io::stdout());
@@ -166,6 +182,110 @@ fn run_search(query: &str, config_file: Option<&str>) -> Result<()> {
     }
 
     println!("\n{} host(s) found.", matches.len());
+    Ok(())
+}
+
+/// Export all hosts to JSON
+fn run_export(output: Option<&str>, config_file: Option<&str>) -> Result<()> {
+    let config_path = match config_file {
+        Some(p) => std::path::PathBuf::from(p),
+        None => crate::config::default_ssh_config_path()?,
+    };
+    let hosts = crate::config::parse_ssh_config(&config_path)?;
+
+    // Create a clean export format (without source_file and line_number)
+    let export_data: Vec<serde_json::Value> = hosts
+        .iter()
+        .map(|h| {
+            serde_json::json!({
+                "name": h.name,
+                "hostname": h.hostname,
+                "user": h.user,
+                "port": h.port,
+                "identity": h.identity,
+                "proxy_jump": h.proxy_jump,
+                "tags": h.tags,
+            })
+        })
+        .collect();
+
+    let json = serde_json::to_string_pretty(&export_data)?;
+
+    match output {
+        Some(path) => {
+            std::fs::write(path, &json)?;
+            eprintln!("Exported {} hosts to {}", hosts.len(), path);
+        }
+        None => {
+            println!("{json}");
+        }
+    }
+    Ok(())
+}
+
+/// Import hosts from a JSON file
+fn run_import(file: &str, skip_duplicates: bool, config_file: Option<&str>) -> Result<()> {
+    let config_path = match config_file {
+        Some(p) => std::path::PathBuf::from(p),
+        None => crate::config::default_ssh_config_path()?,
+    };
+
+    let data = std::fs::read_to_string(file)?;
+    let entries: Vec<serde_json::Value> = serde_json::from_str(&data)?;
+
+    let mut imported = 0;
+    let mut skipped = 0;
+
+    for entry in &entries {
+        let name = entry["name"].as_str().unwrap_or("").to_string();
+        let hostname = entry["hostname"].as_str().unwrap_or("").to_string();
+
+        if name.is_empty() || hostname.is_empty() {
+            eprintln!("Skipping entry with missing name or hostname");
+            skipped += 1;
+            continue;
+        }
+
+        let tags: Vec<String> = entry["tags"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let host = crate::config::SshHost {
+            name: name.clone(),
+            hostname,
+            user: entry["user"].as_str().unwrap_or("").to_string(),
+            port: entry["port"].as_str().unwrap_or("22").to_string(),
+            identity: entry["identity"].as_str().unwrap_or("").to_string(),
+            proxy_jump: entry["proxy_jump"].as_str().unwrap_or("").to_string(),
+            proxy_command: String::new(),
+            options: String::new(),
+            remote_command: String::new(),
+            request_tty: String::new(),
+            tags,
+            source_file: config_path.clone(),
+            line_number: 0,
+        };
+
+        match crate::config::add_host(&config_path, &host) {
+            Ok(()) => {
+                imported += 1;
+            }
+            Err(e) => {
+                if skip_duplicates && e.to_string().contains("already exists") {
+                    skipped += 1;
+                } else {
+                    return Err(e);
+                }
+            }
+        }
+    }
+
+    eprintln!("Imported {imported} hosts ({skipped} skipped)");
     Ok(())
 }
 

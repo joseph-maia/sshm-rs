@@ -50,6 +50,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - Double-click to connect
   - Visual scrollbar (▲/▼) when list overflows
 
+- **Clipboard copy** (`y` key in TUI)
+  - Copies `user@hostname` (or just hostname if no user) to system clipboard
+  - Cross-platform via `arboard` crate
+  - Toast feedback on copy success/failure
+
+- **Export/Import CLI commands**
+  - `sshm-rs export [-o file.json]`: Export all hosts to JSON (stdout or file)
+  - `sshm-rs import <file.json> [--skip-duplicates]`: Import hosts from JSON
+  - Clean export format (name, hostname, user, port, identity, proxy_jump, tags)
+  - Duplicate detection with optional skip on import
+
 - **Toast/flash messages**
   - Feedback after operations: "Host added", "Host deleted", "Password saved", etc.
   - Auto-dismiss after 3 seconds

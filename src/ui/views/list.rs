@@ -261,7 +261,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         )
     } else {
         (
-            " j/k: navigate | Enter: connect | /: search | s: sort | f: fav | F: forward | r: refresh | p: password | i: info | ?: help | q: quit".to_string(),
+            " j/k: navigate | Enter: connect | /: search | s: sort | f: fav | F: fwd | y: copy | r: refresh | p: pwd | i: info | ?: help | q: quit".to_string(),
             styles::help_text_style(),
         )
     };
