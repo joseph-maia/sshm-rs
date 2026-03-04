@@ -196,7 +196,13 @@ pub fn connect_ssh(
                 None
             };
 
-            return connect_ssh2_interactive(hostname, port, &user, &password, remote_cmd.as_deref());
+            match connect_ssh2_interactive(hostname, port, &user, &password, remote_cmd.as_deref()) {
+                Ok(()) => return Ok(()),
+                Err(e) => {
+                    eprintln!("ssh2 connection failed: {e}");
+                    eprintln!("Falling back to system ssh...");
+                }
+            }
         }
     }
 
