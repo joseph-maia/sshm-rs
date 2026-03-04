@@ -5,6 +5,7 @@ edition = "2021"
 description = "A beautiful TUI SSH connection manager, inspired by https://github.com/Gu1llaum-3/sshm"
 license = "MIT"
 repository = "https://github.com/joseph-maia/sshm-rs"
+default-run = "sshm-rs"
 
 [dependencies]
 # TUI
@@ -22,12 +23,13 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # Utils
+whoami = "1"
 dirs = "6"
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1"
 glob = "0.3"
 anyhow = "1"
-keyring = "3.6.3"
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "linux-native"] }
 
 [dev-dependencies]
 tempfile = "3"

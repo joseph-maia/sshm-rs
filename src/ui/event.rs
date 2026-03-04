@@ -38,6 +38,7 @@ fn handle_key(app: &mut App, key: KeyEvent) {
         ViewMode::DeleteConfirm => handle_delete_key(app, key),
         ViewMode::Info => handle_info_key(app, key),
         ViewMode::Add => handle_add_key(app, key),
+        ViewMode::Password => handle_password_key(app, key),
     }
 }
 
@@ -127,6 +128,13 @@ fn handle_table_key(app: &mut App, key: KeyEvent) {
         KeyCode::Char('a') => {
             app.reset_add_form();
             app.view_mode = ViewMode::Add;
+        }
+        KeyCode::Char('p') => {
+            if let Some(host) = app.selected_host() {
+                app.password_target = Some(host.name.clone());
+                app.password_input.clear();
+                app.view_mode = ViewMode::Password;
+            }
         }
         KeyCode::Char('e') => {
             // TODO: edit form
@@ -253,6 +261,43 @@ fn handle_add_key(app: &mut App, key: KeyEvent) {
                     app.add_error = Some(format!("{e}"));
                 }
             }
+        }
+        _ => {}
+    }
+}
+
+fn handle_password_key(app: &mut App, key: KeyEvent) {
+    match key.code {
+        KeyCode::Esc => {
+            app.password_target = None;
+            app.password_input.clear();
+            app.view_mode = ViewMode::List;
+        }
+        KeyCode::Enter => {
+            if let Some(ref target) = app.password_target.clone() {
+                if !app.password_input.is_empty() {
+                    let _ = crate::credentials::save_password(target, &app.password_input);
+                }
+            }
+            app.password_target = None;
+            app.password_input.clear();
+            app.view_mode = ViewMode::List;
+        }
+        KeyCode::Delete => {
+            if let Some(ref target) = app.password_target.clone() {
+                if crate::credentials::has_password(target) {
+                    let _ = crate::credentials::delete_password(target);
+                }
+            }
+            app.password_target = None;
+            app.password_input.clear();
+            app.view_mode = ViewMode::List;
+        }
+        KeyCode::Backspace => {
+            app.password_input.pop();
+        }
+        KeyCode::Char(c) => {
+            app.password_input.push(c);
         }
         _ => {}
     }

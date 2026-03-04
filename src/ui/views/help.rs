@@ -67,6 +67,10 @@ pub fn draw(f: &mut Frame, area: Rect) {
             Span::styled("Delete selected host", desc_style),
         ]),
         Line::from(vec![
+            Span::styled("  p        ", key_style),
+            Span::styled("Set/remove password for host", desc_style),
+        ]),
+        Line::from(vec![
             Span::styled("  i        ", key_style),
             Span::styled("Show host info", desc_style),
         ]),

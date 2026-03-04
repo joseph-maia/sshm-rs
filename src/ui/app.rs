@@ -10,6 +10,7 @@ pub enum ViewMode {
     DeleteConfirm,
     Info,
     Add,
+    Password,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,6 +139,10 @@ pub struct App {
     pub add_focused: AddField,
     pub add_error: Option<String>,
     pub config_path: std::path::PathBuf,
+
+    // Password overlay state
+    pub password_input: String,
+    pub password_target: Option<String>,
 }
 
 impl App {
@@ -162,6 +167,8 @@ impl App {
             add_focused: AddField::Name,
             add_error: None,
             config_path,
+            password_input: String::new(),
+            password_target: None,
         };
         app.hosts = app.sort_hosts(&hosts);
         app.filtered_hosts = app.hosts.clone();
@@ -175,6 +182,7 @@ impl App {
         self.add_error = None;
     }
 
+    #[allow(dead_code)]
     pub fn add_field_value(&self, field: AddField) -> &str {
         &self.add_fields[field as usize]
     }

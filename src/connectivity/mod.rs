@@ -159,23 +159,229 @@ fn ping_host_tcp(name: &str, hostname: &str, port: &str, timeout: Duration) -> P
     }
 }
 
-/// Connect to an SSH host using the system ssh command.
-/// If a saved password exists, uses SSH_ASKPASS mechanism to pass it.
+/// Connect to an SSH host.
+/// If a saved password exists in credential store, uses ssh2 for direct auth.
+/// Otherwise, falls back to the system `ssh` command (key-based auth).
 pub fn connect_ssh(
     host: &str,
     remote_command: &[String],
     config_file: Option<&str>,
     force_tty: bool,
 ) -> Result<()> {
-    let saved_password = crate::credentials::get_password(host);
+    // Check for saved password
+    if let Some(password) = crate::credentials::get_password(host) {
+        // Resolve host details from SSH config
+        let config_path = match config_file {
+            Some(p) => std::path::PathBuf::from(p),
+            None => crate::config::default_ssh_config_path()?,
+        };
+        let hosts = crate::config::parse_ssh_config(&config_path)?;
 
-    // If we have a saved password, create a temp askpass helper
-    let _askpass_guard = if let Some(ref password) = saved_password {
-        Some(AskpassHelper::create(password)?)
+        if let Some(host_info) = hosts.iter().find(|h| h.name == host) {
+            let hostname = if host_info.hostname.is_empty() {
+                &host_info.name
+            } else {
+                &host_info.hostname
+            };
+            let port = if host_info.port.is_empty() { "22" } else { &host_info.port };
+            let user = if host_info.user.is_empty() {
+                whoami::username()
+            } else {
+                host_info.user.clone()
+            };
+
+            let remote_cmd = if !remote_command.is_empty() {
+                Some(remote_command.join(" "))
+            } else {
+                None
+            };
+
+            match connect_ssh2_interactive(hostname, port, &user, &password, remote_cmd.as_deref()) {
+                Ok(()) => return Ok(()),
+                Err(e) => {
+                    eprintln!("ssh2 connection failed: {e}");
+                    eprintln!("Falling back to system ssh...");
+                }
+            }
+        }
+    }
+
+    // Fallback: system ssh command (key-based or interactive password prompt)
+    connect_ssh_system(host, remote_command, config_file, force_tty)
+}
+
+/// Direct SSH connection via ssh2 crate with password auth + interactive shell.
+fn connect_ssh2_interactive(
+    hostname: &str,
+    port: &str,
+    user: &str,
+    password: &str,
+    remote_command: Option<&str>,
+) -> Result<()> {
+    use ssh2::Session;
+
+    let addr = format!("{hostname}:{port}");
+    println!("Connecting to {user}@{hostname}:{port} (saved password)...");
+
+    // TCP connect
+    let tcp = TcpStream::connect_timeout(
+        &addr
+            .to_socket_addrs()?
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("Cannot resolve {addr}"))?,
+        Duration::from_secs(10),
+    )?;
+
+    // SSH session
+    let mut session = Session::new()?;
+    session.set_tcp_stream(tcp);
+    session.handshake()?;
+    session.userauth_password(user, password)?;
+
+    if !session.authenticated() {
+        anyhow::bail!("Authentication failed for {user}@{hostname}");
+    }
+
+    // Open channel
+    let mut channel = session.channel_session()?;
+
+    // Request PTY
+    channel.request_pty("xterm-256color", None, None)?;
+
+    if let Some(cmd) = remote_command {
+        channel.exec(cmd)?;
     } else {
-        None
-    };
+        channel.shell()?;
+    }
 
+    // Set non-blocking for the channel
+    session.set_blocking(false);
+
+    // Enable raw mode for local terminal
+    crossterm::terminal::enable_raw_mode()?;
+
+    // Run the I/O loop, capturing the result so we can always restore the terminal
+    let loop_result = ssh_io_loop(&mut session, &mut channel);
+
+    // Always restore terminal, even if the loop errored
+    let _ = crossterm::terminal::disable_raw_mode();
+
+    // Propagate any error from the I/O loop
+    loop_result?;
+
+    // Get exit status (session must be blocking for wait_close)
+    session.set_blocking(true);
+    channel.wait_close()?;
+    let exit_code = channel.exit_status().unwrap_or(0);
+    println!("\nConnection closed (exit code: {exit_code}).");
+
+    std::process::exit(exit_code);
+}
+
+/// I/O loop for the SSH interactive session.
+/// Forwards stdin (via crossterm events) to the SSH channel and channel output to stdout/stderr.
+/// Returns Ok(()) when the channel closes, or Err on a fatal I/O error.
+fn ssh_io_loop(session: &mut ssh2::Session, channel: &mut ssh2::Channel) -> Result<()> {
+    use std::io::{Read, Write};
+
+    let mut stdout = std::io::stdout();
+    let mut buf = [0u8; 4096];
+
+    loop {
+        // Read from SSH channel -> stdout
+        match channel.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                stdout.write_all(&buf[..n])?;
+                stdout.flush()?;
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+            Err(e) => {
+                if channel.eof() {
+                    break;
+                }
+                return Err(e.into());
+            }
+        }
+
+        // Read stderr from channel
+        match channel.stderr().read(&mut buf) {
+            Ok(0) => {}
+            Ok(n) => {
+                std::io::stderr().write_all(&buf[..n])?;
+                std::io::stderr().flush()?;
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+            Err(_) => {}
+        }
+
+        // Read from stdin -> SSH channel (non-blocking via crossterm events)
+        if crossterm::event::poll(Duration::from_millis(10))? {
+            if let crossterm::event::Event::Key(key) = crossterm::event::read()? {
+                if key.kind == crossterm::event::KeyEventKind::Press {
+                    let bytes = key_event_to_bytes(&key);
+                    if !bytes.is_empty() {
+                        session.set_blocking(true);
+                        channel.write_all(&bytes)?;
+                        channel.flush()?;
+                        session.set_blocking(false);
+                    }
+                }
+            }
+        }
+
+        // Check if channel closed
+        if channel.eof() {
+            break;
+        }
+
+        thread::sleep(Duration::from_millis(5));
+    }
+
+    Ok(())
+}
+
+/// Convert a crossterm key event to raw bytes for the SSH channel.
+fn key_event_to_bytes(key: &crossterm::event::KeyEvent) -> Vec<u8> {
+    use crossterm::event::{KeyCode, KeyModifiers};
+
+    match key.code {
+        KeyCode::Char(c) => {
+            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                // Ctrl+A = 0x01, Ctrl+C = 0x03, etc.
+                let ctrl_byte = (c as u8).wrapping_sub(b'a').wrapping_add(1);
+                vec![ctrl_byte]
+            } else {
+                let mut buf = [0u8; 4];
+                let s = c.encode_utf8(&mut buf);
+                s.as_bytes().to_vec()
+            }
+        }
+        KeyCode::Enter => vec![b'\r'],
+        KeyCode::Backspace => vec![0x7f],
+        KeyCode::Tab => vec![b'\t'],
+        KeyCode::Esc => vec![0x1b],
+        KeyCode::Up => vec![0x1b, b'[', b'A'],
+        KeyCode::Down => vec![0x1b, b'[', b'B'],
+        KeyCode::Right => vec![0x1b, b'[', b'C'],
+        KeyCode::Left => vec![0x1b, b'[', b'D'],
+        KeyCode::Home => vec![0x1b, b'[', b'H'],
+        KeyCode::End => vec![0x1b, b'[', b'F'],
+        KeyCode::Delete => vec![0x1b, b'[', b'3', b'~'],
+        KeyCode::PageUp => vec![0x1b, b'[', b'5', b'~'],
+        KeyCode::PageDown => vec![0x1b, b'[', b'6', b'~'],
+        KeyCode::Insert => vec![0x1b, b'[', b'2', b'~'],
+        _ => vec![],
+    }
+}
+
+/// Fallback: connect using the system `ssh` command (for key-based auth).
+fn connect_ssh_system(
+    host: &str,
+    remote_command: &[String],
+    config_file: Option<&str>,
+    force_tty: bool,
+) -> Result<()> {
     let mut cmd = std::process::Command::new("ssh");
 
     if let Some(cfg) = config_file {
@@ -186,20 +392,12 @@ pub fn connect_ssh(
         cmd.arg("-t");
     }
 
-    // If we have a password, set up SSH_ASKPASS environment
-    if let Some(ref guard) = _askpass_guard {
-        cmd.env("SSH_ASKPASS", &guard.script_path);
-        cmd.env("SSH_ASKPASS_REQUIRE", "force");
-        cmd.env("DISPLAY", ":0");
-    }
-
     cmd.arg(host);
 
     if !remote_command.is_empty() {
         cmd.args(remote_command);
     } else {
-        let has_pw = if saved_password.is_some() { " (using saved password)" } else { "" };
-        println!("Connecting to {host}...{has_pw}");
+        println!("Connecting to {host}...");
     }
 
     cmd.stdin(std::process::Stdio::inherit())
@@ -208,36 +406,4 @@ pub fn connect_ssh(
 
     let status = cmd.status()?;
     std::process::exit(status.code().unwrap_or(1));
-}
-
-/// Temporary askpass helper script that outputs the password.
-/// The script is deleted when the guard is dropped.
-struct AskpassHelper {
-    script_path: std::path::PathBuf,
-}
-
-impl AskpassHelper {
-    fn create(password: &str) -> Result<Self> {
-        let temp_dir = std::env::temp_dir();
-        let script_path = temp_dir.join("sshm_askpass.cmd");
-
-        // Write a .cmd script that echoes the password via an env var
-        // The password is passed as env var SSHM_PASS to avoid disk exposure
-        let script_content = "@echo off\necho %SSHM_PASS%\n";
-        std::fs::write(&script_path, script_content)?;
-
-        // Set the env var with the actual password for this process
-        std::env::set_var("SSHM_PASS", password);
-
-        Ok(Self { script_path })
-    }
-}
-
-impl Drop for AskpassHelper {
-    fn drop(&mut self) {
-        // Clean up the script file
-        let _ = std::fs::remove_file(&self.script_path);
-        // Clear the env var
-        std::env::remove_var("SSHM_PASS");
-    }
 }

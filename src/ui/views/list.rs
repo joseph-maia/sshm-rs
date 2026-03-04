@@ -41,6 +41,7 @@ pub fn draw(f: &mut Frame, app: &App) {
         ViewMode::DeleteConfirm => draw_delete_confirm(f, app, area),
         ViewMode::Info => draw_info_overlay(f, app, area),
         ViewMode::Add => draw_add_form(f, app, area),
+        ViewMode::Password => draw_password_overlay(f, app, area),
         _ => {}
     }
 }
@@ -201,7 +202,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
     let help_text = if app.search_mode {
         " Type to filter | Enter: validate | Tab: switch | Esc: quit search"
     } else {
-        " j/k: navigate | Enter: connect | /: search | s: sort | i: info | ?: help | q: quit"
+        " j/k: navigate | Enter: connect | /: search | s: sort | p: password | i: info | ?: help | q: quit"
     };
 
     let count = app.filtered_hosts.len();
@@ -437,6 +438,70 @@ fn draw_add_form(f: &mut Frame, app: &App, area: Rect) {
         "  Tab/Arrows: navigate | Enter: save | Esc: cancel",
         styles::help_text_style(),
     )));
+
+    let paragraph = Paragraph::new(lines).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(styles::border_focused_style())
+            .style(Style::default().bg(styles::BG).fg(styles::FG)),
+    );
+    f.render_widget(paragraph, popup_area);
+}
+
+fn draw_password_overlay(f: &mut Frame, app: &App, area: Rect) {
+    let host_name = app.password_target.as_deref().unwrap_or("???");
+    let has_existing = crate::credentials::has_password(host_name);
+
+    let popup_width = 50u16.min(area.width.saturating_sub(4));
+    let popup_height = 9u16;
+    let x = (area.width.saturating_sub(popup_width)) / 2;
+    let y = (area.height.saturating_sub(popup_height)) / 2;
+    let popup_area = Rect::new(x, y, popup_width, popup_height);
+
+    f.render_widget(Clear, popup_area);
+
+    let masked_input = if app.password_input.is_empty() {
+        String::new()
+    } else {
+        "*".repeat(app.password_input.len())
+    };
+
+    let mut lines = vec![
+        Line::from(Span::styled(
+            " SET PASSWORD ",
+            Style::default()
+                .fg(styles::BG)
+                .bg(styles::PRIMARY)
+                .add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  Host: ", Style::default().fg(styles::MUTED)),
+            Span::styled(host_name, Style::default().fg(styles::FG).add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    if has_existing {
+        lines.push(Line::from(vec![
+            Span::styled("  Password: ", Style::default().fg(styles::MUTED)),
+            Span::styled("[Saved]", Style::default().fg(styles::GREEN)),
+            Span::styled(" — Enter new or Del to remove", Style::default().fg(styles::MUTED)),
+        ]));
+    }
+
+    lines.push(Line::from(vec![
+        Span::styled("  New:   ", Style::default().fg(styles::MUTED)),
+        Span::styled(format!("{masked_input}_"), Style::default().fg(styles::FG)),
+    ]));
+
+    lines.push(Line::from(""));
+
+    let help = if has_existing {
+        "  Enter: save | Del: remove | Esc: cancel"
+    } else {
+        "  Enter: save | Esc: cancel"
+    };
+    lines.push(Line::from(Span::styled(help, styles::help_text_style())));
 
     let paragraph = Paragraph::new(lines).block(
         Block::default()
