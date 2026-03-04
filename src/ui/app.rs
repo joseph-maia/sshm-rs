@@ -1,6 +1,8 @@
 use crate::config::SshHost;
 use crate::connectivity::{HostStatus, PingManager};
 use crate::history::HistoryManager;
+use nucleo_matcher::pattern::{AtomKind, CaseMatching, Normalization, Pattern};
+use nucleo_matcher::{Config, Matcher};
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -280,20 +282,49 @@ impl App {
             self.filtered_hosts = self.sort_hosts(&self.hosts);
         } else {
             let subqueries: Vec<&str> = self.search_query.split_whitespace().collect();
-            let all_hosts = self.hosts.clone();
-            let filtered: Vec<SshHost> = all_hosts
-                .into_iter()
-                .filter(|host| {
-                    subqueries.iter().all(|q| {
-                        let q = q.to_lowercase();
-                        host.name.to_lowercase().contains(&q)
-                            || host.hostname.to_lowercase().contains(&q)
-                            || host.user.to_lowercase().contains(&q)
-                            || host.tags.iter().any(|t| t.to_lowercase().contains(&q))
-                    })
+            let mut matcher = Matcher::new(Config::DEFAULT);
+
+            // Score each host: all subqueries must match for the host to be included.
+            // The total score is the sum of per-word best scores.
+            let mut scored: Vec<(SshHost, u32)> = self
+                .hosts
+                .iter()
+                .filter_map(|host| {
+                    let mut total_score: u32 = 0;
+
+                    for &q in &subqueries {
+                        // Check for prefix filters
+                        let (field_filter, needle) = parse_query_prefix(q);
+                        let haystack = build_haystack(host, field_filter);
+
+                        let pattern = Pattern::new(
+                            needle,
+                            CaseMatching::Ignore,
+                            Normalization::Smart,
+                            AtomKind::Fuzzy,
+                        );
+                        let mut haystack_buf = Vec::new();
+                        let score = pattern.score(
+                            nucleo_matcher::Utf32Str::new(&haystack, &mut haystack_buf),
+                            &mut matcher,
+                        );
+                        match score {
+                            Some(s) => total_score = total_score.saturating_add(s),
+                            None => return None, // this word didn't match at all
+                        }
+                    }
+
+                    Some((host.clone(), total_score))
                 })
                 .collect();
-            self.filtered_hosts = self.sort_hosts(&filtered);
+
+            // Sort by score descending (best match first), then by name for ties
+            scored.sort_by(|a, b| {
+                b.1.cmp(&a.1)
+                    .then_with(|| a.0.name.to_lowercase().cmp(&b.0.name.to_lowercase()))
+            });
+
+            self.filtered_hosts = scored.into_iter().map(|(host, _)| host).collect();
         }
         // Clamp selected
         if !self.filtered_hosts.is_empty() {
@@ -403,5 +434,48 @@ impl App {
             }
         }
         String::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Fuzzy-search helpers
+// ---------------------------------------------------------------------------
+
+/// Which host field(s) to search in.
+#[derive(Clone, Copy)]
+enum FieldFilter {
+    All,
+    Tag,
+    User,
+    Host,
+}
+
+/// Parse a query token like `tag:web` into `(FieldFilter::Tag, "web")`.
+/// If no recognised prefix is found, returns `(FieldFilter::All, <original>)`.
+fn parse_query_prefix(token: &str) -> (FieldFilter, &str) {
+    if let Some(rest) = token.strip_prefix("tag:") {
+        (FieldFilter::Tag, rest)
+    } else if let Some(rest) = token.strip_prefix("user:") {
+        (FieldFilter::User, rest)
+    } else if let Some(rest) = token.strip_prefix("host:") {
+        (FieldFilter::Host, rest)
+    } else {
+        (FieldFilter::All, token)
+    }
+}
+
+/// Build a haystack string for fuzzy matching from the relevant host fields.
+fn build_haystack(host: &SshHost, filter: FieldFilter) -> String {
+    match filter {
+        FieldFilter::Tag => host.tags.join(" "),
+        FieldFilter::User => host.user.clone(),
+        FieldFilter::Host => host.hostname.clone(),
+        FieldFilter::All => {
+            let tags_str = host.tags.join(" ");
+            format!(
+                "{} {} {} {} {}",
+                host.name, host.hostname, host.user, host.port, tags_str
+            )
+        }
     }
 }
