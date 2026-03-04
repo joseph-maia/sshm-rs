@@ -22,16 +22,23 @@ pub fn draw(f: &mut Frame, app: &App) {
     let bg_block = Block::default().style(Style::default().bg(styles::BG));
     f.render_widget(bg_block, area);
 
-    // Main layout: title, search, table, status bar
+    // Responsive layout: compact title when terminal is small
+    let compact = area.height < 20;
+    let title_height = if compact { 1 } else { 5 };
+
     let chunks = Layout::vertical([
-        Constraint::Length(5),  // ASCII title
-        Constraint::Length(3),  // Search bar
-        Constraint::Min(3),    // Table
-        Constraint::Length(1), // Status bar
+        Constraint::Length(title_height), // Title (compact or ASCII art)
+        Constraint::Length(3),            // Search bar
+        Constraint::Min(3),              // Table
+        Constraint::Length(1),           // Status bar
     ])
     .split(area);
 
-    draw_title(f, chunks[0]);
+    if compact {
+        draw_compact_title(f, chunks[0]);
+    } else {
+        draw_title(f, chunks[0]);
+    }
     draw_search_bar(f, app, chunks[1]);
     draw_table(f, app, chunks[2]);
     draw_status_bar(f, app, chunks[3]);
@@ -51,6 +58,17 @@ fn draw_title(f: &mut Frame, area: Rect) {
     let title = Paragraph::new(ASCII_TITLE)
         .style(styles::header_style())
         .alignment(Alignment::Center);
+    f.render_widget(title, area);
+}
+
+fn draw_compact_title(f: &mut Frame, area: Rect) {
+    let title = Paragraph::new(Line::from(Span::styled(
+        "sshm-rs",
+        Style::default()
+            .fg(styles::PRIMARY)
+            .add_modifier(Modifier::BOLD),
+    )))
+    .alignment(Alignment::Center);
     f.render_widget(title, area);
 }
 
@@ -160,9 +178,21 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
                 host.port.clone()
             };
 
+            let name_display = if app.favorites.is_favorite(&host.name) {
+                format!("\u{2605} {}", host.name)
+            } else {
+                host.name.clone()
+            };
+
+            let name_style = if app.favorites.is_favorite(&host.name) {
+                Style::default().fg(styles::YELLOW)
+            } else {
+                Style::default().fg(styles::FG)
+            };
+
             let cells = vec![
                 Span::styled(indicator.to_string(), status_style),
-                Span::styled(host.name.clone(), Style::default().fg(styles::FG)),
+                Span::styled(name_display, name_style),
                 Span::styled(host.user.clone(), Style::default().fg(styles::FG)),
                 Span::styled(host.hostname.clone(), Style::default().fg(styles::CYAN)),
                 Span::styled(port_display, Style::default().fg(styles::FG)),
@@ -230,7 +260,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         )
     } else {
         (
-            " j/k: navigate | Enter: connect | /: search | s: sort | r: refresh | p: password | i: info | ?: help | q: quit".to_string(),
+            " j/k: navigate | Enter: connect | /: search | s: sort | f: favorite | r: refresh | p: password | i: info | ?: help | q: quit".to_string(),
             styles::help_text_style(),
         )
     };

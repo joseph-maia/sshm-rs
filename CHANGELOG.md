@@ -9,6 +9,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **Responsive title**
+  - ASCII art title hidden when terminal height < 20 lines
+  - Compact one-line "sshm-rs" title shown instead
+  - Table gains 4 extra visible rows in small terminals
+
+- **Favorites / Pinned hosts** (`f` key in TUI)
+  - Toggle favorite on any host with `f` key
+  - Favorites pinned to top of list with gold star indicator
+  - Persisted in `favorites.json` in sshm config directory
+  - Works with all sort modes (favorites always on top)
+
 - **Edit Host form** (`e` key in TUI)
   - Pre-populated fields from existing host data
   - Password credential migration on host rename
