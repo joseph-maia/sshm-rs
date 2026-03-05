@@ -119,7 +119,11 @@ fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     if let Some(DisplayRow::GroupHeader { ref name, .. }) = app.display_rows.get(clicked_index) {
                         let group_name = name.clone();
                         app.selected = clicked_index;
-                        app.groups.toggle_collapse(&group_name);
+                        if group_name == "Ungrouped" {
+                            app.ungrouped_collapsed = !app.ungrouped_collapsed;
+                        } else {
+                            app.groups.toggle_collapse(&group_name);
+                        }
                         app.rebuild_display_rows();
                         return;
                     }
@@ -260,10 +264,12 @@ fn handle_table_key(app: &mut App, key: KeyEvent) {
             // Check if cursor is on a GroupHeader
             if let Some(DisplayRow::GroupHeader { name, .. }) = app.display_rows.get(app.selected) {
                 let name = name.clone();
-                if name != "Ungrouped" {
+                if name == "Ungrouped" {
+                    app.ungrouped_collapsed = !app.ungrouped_collapsed;
+                } else {
                     app.groups.toggle_collapse(&name);
-                    app.rebuild_display_rows();
                 }
+                app.rebuild_display_rows();
             } else if app.has_selection() {
                 let count = app.selected_hosts.len();
                 app.show_toast(&format!("{count} host{} selected — d: delete | Esc: clear", if count == 1 { "" } else { "s" }));
@@ -408,6 +414,12 @@ fn handle_table_key(app: &mut App, key: KeyEvent) {
                 app.scp_focused = 0;
                 app.scp_error = None;
                 app.view_mode = ViewMode::FileTransfer;
+            }
+        }
+        KeyCode::Char('W') => {
+            if let Some(host) = app.selected_host() {
+                app.connect_host = Some(format!("__sshm_term__:{}", host.name));
+                app.should_quit = true;
             }
         }
         KeyCode::Char('e') => {

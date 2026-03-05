@@ -170,6 +170,10 @@ pub fn draw(f: &mut Frame, area: Rect) {
             Span::styled("  X        ", key_style),
             Span::styled("SCP file transfer", desc_style),
         ]),
+        Line::from(vec![
+            Span::styled("  W        ", key_style),
+            Span::styled("Open with sshm-term (terminal + SFTP)", desc_style),
+        ]),
         Line::from(""),
         // System
         Line::from(Span::styled("System", section_style)),

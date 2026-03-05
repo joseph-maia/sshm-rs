@@ -1,6 +1,6 @@
 [package]
 name = "sshm-rs"
-version = "0.1.0-beta.1"
+version = "0.1.0"
 edition = "2021"
 description = "A beautiful TUI SSH connection manager, inspired by https://github.com/Gu1llaum-3/sshm"
 license = "MIT"
@@ -10,7 +10,7 @@ default-run = "sshm-rs"
 [dependencies]
 # TUI
 ratatui = "0.29"
-crossterm = "0.28"
+crossterm = { version = "0.28", features = ["event-stream"] }
 
 # CLI
 clap = { version = "4", features = ["derive"] }
@@ -36,7 +36,17 @@ chrono = { version = "0.4", features = ["serde"] }
 regex = "1"
 glob = "0.3"
 anyhow = "1"
+rpassword = "7"
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "linux-native"] }
+
+# sshm-term: SSH terminal + SFTP browser companion binary
+russh = { version = "0.57", default-features = false, features = ["ring"] }
+russh-sftp = "2.1"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+tui-term = "0.2"
+tui-tree-widget = "0.24"
+vt100 = "0.15"
 
 [dev-dependencies]
 tempfile = "3"

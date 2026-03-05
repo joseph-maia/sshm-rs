@@ -232,6 +232,7 @@ pub struct App {
     pub group_input: String,
     pub group_picker_items: Vec<String>,
     pub group_picker_selected: usize,
+    pub ungrouped_collapsed: bool,
 }
 
 impl App {
@@ -305,6 +306,7 @@ impl App {
             group_input: String::new(),
             group_picker_items: Vec::new(),
             group_picker_selected: 0,
+            ungrouped_collapsed: false,
         };
         app.hosts = app.sort_hosts(&hosts);
         app.filtered_hosts = app.hosts.clone();
@@ -475,11 +477,13 @@ impl App {
                 rows.push(DisplayRow::GroupHeader {
                     name: "Ungrouped".to_string(),
                     host_count: ungrouped.len(),
-                    collapsed: false,
+                    collapsed: self.ungrouped_collapsed,
                 });
             }
-            for idx in ungrouped {
-                rows.push(DisplayRow::HostRow(idx));
+            if !self.ungrouped_collapsed || self.groups.groups.is_empty() {
+                for idx in ungrouped {
+                    rows.push(DisplayRow::HostRow(idx));
+                }
             }
         }
 

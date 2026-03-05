@@ -9,10 +9,14 @@ use crate::ui::app::{App, DisplayRow, SortMode, ViewMode};
 use crate::ui::styles;
 
 const ASCII_TITLE: &str = r#"
-         _
- ___ ___| |_ _____    ___ ___
-|_ -|_ -|   |     |__|  _|_ -|
-|___|___|_|_|_|_|_|__|_| |___|
+  /$$$$$$   /$$$$$$  /$$   /$$ /$$      /$$         /$$$$$$$   /$$$$$$
+ /$$__  $$ /$$__  $$| $$  | $$| $$$    /$$$        | $$__  $$ /$$__  $$
+| $$  \__/| $$  \__/| $$  | $$| $$$$  /$$$$        | $$  \ $$| $$  \__/
+|  $$$$$$ |  $$$$$$ | $$$$$$$$| $$ $$/$$ $$ /$$$$$$| $$$$$$$/|  $$$$$$
+ \____  $$ \____  $$| $$__  $$| $$  $$$| $$|______/| $$__  $$ \____  $$
+ /$$  \ $$ /$$  \ $$| $$  | $$| $$\  $ | $$        | $$  \ $$ /$$  \ $$
+|  $$$$$$/|  $$$$$$/| $$  | $$| $$ \/  | $$        | $$  | $$|  $$$$$$/
+ \______/  \______/ |__/  |__/|__/     |__/        |__/  |__/ \______/
 "#;
 
 pub fn draw(f: &mut Frame, app: &App) {
@@ -24,7 +28,7 @@ pub fn draw(f: &mut Frame, app: &App) {
 
     // Responsive layout: compact title when terminal is small
     let compact = area.height < 20;
-    let title_height = if compact { 1 } else { 5 };
+    let title_height = if compact { 1 } else { 9 };
 
     let draw_content = |f: &mut Frame, content_area: Rect| {
         let chunks = Layout::vertical([
@@ -76,9 +80,22 @@ pub fn draw(f: &mut Frame, app: &App) {
 }
 
 fn draw_title(f: &mut Frame, area: Rect) {
-    let title = Paragraph::new(ASCII_TITLE)
-        .style(styles::header_style())
-        .alignment(Alignment::Center);
+    if area.width < 75 {
+        draw_compact_title(f, area);
+        return;
+    }
+
+    let lines: Vec<Line> = ASCII_TITLE
+        .lines()
+        .map(|line| {
+            Line::from(Span::styled(
+                line.to_string(),
+                Style::default().fg(styles::primary()),
+            ))
+        })
+        .collect();
+
+    let title = Paragraph::new(lines).alignment(Alignment::Center);
     f.render_widget(title, area);
 }
 

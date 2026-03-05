@@ -503,6 +503,85 @@ pub fn launch_scp(
     Ok(())
 }
 
+/// Launch the sshm-term companion app for integrated terminal + SFTP.
+pub fn launch_sshm_term(host: &str, config_file: Option<&str>) -> Result<()> {
+    let config_path = match config_file {
+        Some(p) => std::path::PathBuf::from(p),
+        None => crate::config::default_ssh_config_path()?,
+    };
+    let hosts = crate::config::parse_ssh_config(&config_path)?;
+
+    let mut cmd_args: Vec<String> = Vec::new();
+
+    if let Some(host_info) = hosts.iter().find(|h| h.name == host) {
+        let hostname = if host_info.hostname.is_empty() {
+            &host_info.name
+        } else {
+            &host_info.hostname
+        };
+        let user = if host_info.user.is_empty() {
+            whoami::username()
+        } else {
+            host_info.user.clone()
+        };
+        let port = if host_info.port.is_empty() || host_info.port == "22" {
+            None
+        } else {
+            Some(host_info.port.as_str())
+        };
+
+        cmd_args.push(format!("{}@{}", user, hostname));
+
+        if let Some(p) = port {
+            cmd_args.push("-p".to_string());
+            cmd_args.push(p.to_string());
+        }
+
+        if !host_info.identity.is_empty() {
+            cmd_args.push("-i".to_string());
+            cmd_args.push(host_info.identity.clone());
+        }
+
+        if let Some(password) = crate::credentials::get_password(host) {
+            // Pass password via env var (not CLI arg, which is visible in ps)
+            cmd_args.push("--password".to_string());
+            std::env::set_var("SSHM_PASSWORD", &password);
+        }
+    } else {
+        cmd_args.push(host.to_string());
+    }
+
+    let current_exe = std::env::current_exe()?;
+    let exe_dir = current_exe.parent().unwrap_or(std::path::Path::new("."));
+
+    let sshm_term_path = if cfg!(windows) {
+        exe_dir.join("sshm-term.exe")
+    } else {
+        exe_dir.join("sshm-term")
+    };
+
+    let program = if sshm_term_path.exists() {
+        sshm_term_path.to_string_lossy().to_string()
+    } else {
+        "sshm-term".to_string()
+    };
+
+    let mut cmd = std::process::Command::new(&program);
+    cmd.args(&cmd_args);
+
+    cmd.stdin(std::process::Stdio::inherit())
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit());
+
+    let status = cmd.status()?;
+
+    if !status.success() {
+        eprintln!("sshm-term exited with status: {}", status);
+    }
+
+    Ok(())
+}
+
 /// Fallback: connect using the system `ssh` command (for key-based auth).
 fn connect_ssh_system(
     host: &str,

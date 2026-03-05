@@ -116,6 +116,34 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - `X`: SCP form with upload/download toggle, local/remote paths
   - Uses system sftp/scp commands with SSH config support
 
+- **sshm-term companion app**: Split-panel SSH terminal + SFTP file browser (MobaXterm-like)
+  - SSH connection via `russh` with password, public key, and auto-detect authentication
+  - Known hosts verification (TOFU) with MITM detection via `~/.ssh/known_hosts`
+  - Live interactive terminal panel using `vt100` + `tui-term` widget
+  - SFTP file browser panel with directory navigation, file metadata, permissions display
+  - Async event loop with `tokio` for concurrent terminal I/O and SFTP operations
+  - Panel toggle (`Ctrl+B`) and focus switching (`Ctrl+S`) between terminal and SFTP
+  - Mouse support: click to select, double-click to enter directory, scroll wheel
+  - Right-click context menu with contextual actions per entry type
+  - File operations: download (`d`), edit-in-place (`e`) via `$VISUAL`/`$EDITOR`/VS Code
+  - Directory operations: archive (zip or tar.gz with auto-detection), download as archive
+  - Delete files/directories with confirmation prompt (red warning bar)
+  - Editable path bar (click or `/` key) for direct path navigation
+  - Follow terminal directory: SFTP auto-syncs with shell `cd` via OSC 7 detection
+  - Smart editor detection: `$VISUAL` → `$EDITOR` → VS Code (`code --wait`) → fallback
+  - Remote command execution via SSH exec channel with proper exit code handling
+  - Downloads open containing folder automatically (explorer/open/xdg-open)
+  - CLI interface: `sshm-term user@host [-p port] [-i key]`
+  - Launch from sshm-rs TUI via `W` key
+
+- **Research documents for sshm-term architecture**
+  - PTY crates comparison and selection rationale
+  - SFTP architecture and async patterns
+  - Competitive analysis of SSH clients and file transfer tools
+
+- **ADR-003: sshm-term companion app architecture decision**
+  - Documents the design decisions, tradeoffs, and technology choices
+
 - **UI polish**
   - Rounded borders on all blocks and overlays
   - Unicode status indicators (● ○ ◌)
@@ -129,6 +157,22 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Keyring credentials not persisting (missing `windows-native` feature)
 - Name with spaces creating multiple SSH host aliases (validation added)
+- **sshm-term**: SSH exec channel exit code ignored (Eof received before ExitStatus)
+- **sshm-term**: SFTP navigation with backslashes on Windows→Linux paths
+- **sshm-term**: Scroll offset not accounted for in SFTP click selection
+- **sshm-term**: VS Code editor launch failure on Windows (use `cmd /c code`)
+- **sshm-term**: Unicode filename truncation panic on multi-byte characters
+- **sshm-term**: `navigate_to` leaves stale state on directory listing failure
+- **sshm-term**: Context menu hit-test using dummy area instead of real frame size
+- **sshm-term**: Predictable temp file path in edit_file (symlink attack vector)
+
+### Known Limitations (beta)
+
+- `--password` CLI argument visible in process listings and shell history
+- `Auth::Agent` tries local key files only, does not connect to ssh-agent/pageant
+- Encrypted private keys (passphrase-protected) silently fail without prompting
+- `exec_command` has no timeout — may hang on broken connections
+- `Ctrl` key combinations beyond `a-z` not fully mapped
 
 ## [0.1.0-beta.1] - 2026-03-04
 

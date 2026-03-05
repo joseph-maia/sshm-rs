@@ -65,6 +65,11 @@ pub fn run_tui() -> Result<()> {
                 let remote = parts[3];
                 crate::connectivity::launch_scp(host, local, remote, upload, None)?;
             }
+        } else if let Some(host_name) = action.strip_prefix("__sshm_term__:") {
+            if let Some(ref mut history) = app.history {
+                let _ = history.record_connection(host_name);
+            }
+            crate::connectivity::launch_sshm_term(host_name, None)?;
         } else if let Some(ref pf_arg) = pf_args {
             if let Some(command) = pf_arg.strip_prefix("__snippet__:") {
                 if let Some(ref mut history) = app.history {
