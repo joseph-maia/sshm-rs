@@ -262,6 +262,16 @@ fn connect_ssh2_interactive(
                 ));
             }
             ssh2::CheckResult::NotFound | ssh2::CheckResult::Failure => {
+                // TOFU: log fingerprint before accepting
+                let fingerprint: String = host_key
+                    .iter()
+                    .map(|b| format!("{:02x}", b))
+                    .collect::<Vec<_>>()
+                    .join(":");
+                eprintln!(
+                    "New host key accepted ({}) for {}:{}",
+                    fingerprint, hostname, port_num
+                );
                 let host_entry = if port_num == 22 {
                     hostname.to_string()
                 } else {
