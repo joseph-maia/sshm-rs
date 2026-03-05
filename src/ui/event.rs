@@ -66,6 +66,33 @@ fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             app.move_down();
         }
         MouseEventKind::Down(MouseButton::Left) => {
+            // Sidebar click handling: sidebar is 20 columns wide at x=0
+            if app.show_sidebar && mouse.column < 20 {
+                // Sidebar border is 1 row at the top; items start at row 1
+                if mouse.row >= 1 {
+                    let item_index = (mouse.row - 1) as usize;
+                    let total_items = app.sidebar_tags.len() + 1;
+                    if item_index < total_items {
+                        app.sidebar_focused = true;
+                        app.sidebar_selected = item_index;
+                        if item_index == 0 {
+                            app.sidebar_active_tag = None;
+                        } else {
+                            let tag_index = item_index - 1;
+                            if let Some(tag) = app.sidebar_tags.get(tag_index).cloned() {
+                                if app.sidebar_active_tag.as_deref() == Some(&tag) {
+                                    app.sidebar_active_tag = None;
+                                } else {
+                                    app.sidebar_active_tag = Some(tag);
+                                }
+                            }
+                        }
+                        app.apply_filter();
+                    }
+                }
+                return;
+            }
+
             // Layout: title (5 or 1 lines) + search bar (3 lines) + table border (1 line) + header (1 line)
             let title_height: u16 = if app.height < 20 { 1 } else { 5 };
             let table_top_offset: u16 = title_height + 3 + 1 + 1;

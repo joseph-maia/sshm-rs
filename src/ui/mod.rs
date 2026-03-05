@@ -66,7 +66,15 @@ pub fn run_tui() -> Result<()> {
                 crate::connectivity::launch_scp(host, local, remote, upload, None)?;
             }
         } else if let Some(ref pf_arg) = pf_args {
-            crate::connectivity::connect_ssh_with_port_forward(&action, pf_arg, None)?;
+            if let Some(command) = pf_arg.strip_prefix("__snippet__:") {
+                if let Some(ref mut history) = app.history {
+                    let _ = history.record_connection(&action);
+                }
+                let args: Vec<String> = command.split_whitespace().map(String::from).collect();
+                crate::connectivity::connect_ssh(&action, &args, None, true)?;
+            } else {
+                crate::connectivity::connect_ssh_with_port_forward(&action, pf_arg, None)?;
+            }
         } else {
             if let Some(ref mut history) = app.history {
                 let _ = history.record_connection(&action);

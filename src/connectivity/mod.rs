@@ -272,10 +272,9 @@ fn connect_ssh2_interactive(
     // Get exit status (session must be blocking for wait_close)
     session.set_blocking(true);
     channel.wait_close()?;
-    let exit_code = channel.exit_status().unwrap_or(0);
-    println!("\nConnection closed (exit code: {exit_code}).");
+    let _exit_code = channel.exit_status().unwrap_or(0);
 
-    std::process::exit(exit_code);
+    Ok(())
 }
 
 /// I/O loop for the SSH interactive session.
@@ -399,8 +398,8 @@ pub fn connect_ssh_with_port_forward(
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit());
 
-    let status = cmd.status()?;
-    std::process::exit(status.code().unwrap_or(1));
+    cmd.status()?;
+    Ok(())
 }
 
 /// Run a command on multiple SSH hosts sequentially.
@@ -470,8 +469,8 @@ pub fn launch_sftp(host: &str, config_file: Option<&str>) -> Result<()> {
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit());
 
-    let status = cmd.status()?;
-    std::process::exit(status.code().unwrap_or(1));
+    cmd.status()?;
+    Ok(())
 }
 
 /// Launch an SCP file transfer.
@@ -500,8 +499,8 @@ pub fn launch_scp(
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit());
 
-    let status = cmd.status()?;
-    std::process::exit(status.code().unwrap_or(1));
+    cmd.status()?;
+    Ok(())
 }
 
 /// Fallback: connect using the system `ssh` command (for key-based auth).
@@ -533,6 +532,6 @@ fn connect_ssh_system(
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit());
 
-    let status = cmd.status()?;
-    std::process::exit(status.code().unwrap_or(1));
+    cmd.status()?;
+    Ok(())
 }
