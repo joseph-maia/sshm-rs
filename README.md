@@ -4,6 +4,20 @@ A beautiful TUI SSH connection manager written in Rust.
 
 Inspired by [sshm (Go)](https://github.com/Gu1llaum-3/sshm) by Gu1llaum-3.
 
+## Installation
+
+### Quick install (Linux/macOS)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.sh | bash
+```
+
+### From source
+
+```bash
+cargo install --git https://github.com/bit5hift/sshm-rs
+```
+
 ## Features
 
 - Interactive TUI to browse, search, and connect to SSH hosts
@@ -13,12 +27,6 @@ Inspired by [sshm (Go)](https://github.com/Gu1llaum-3/sshm) by Gu1llaum-3.
 - Connection history tracking
 - Port forwarding setup (Local, Remote, Dynamic)
 - Cross-platform (Windows, Linux, macOS)
-
-## Install
-
-```bash
-cargo install --path .
-```
 
 ## Usage
 

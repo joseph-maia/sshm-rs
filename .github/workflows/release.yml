@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross: false
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            cross: false
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            cross: true
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            cross: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Add cross-compile target
+        if: matrix.cross == true
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install Linux system dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config libdbus-1-dev
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package (Linux / macOS)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          TARGET=${{ matrix.target }}
+          STAGING="sshm-rs-${VERSION}-${TARGET}"
+          mkdir -p "${STAGING}"
+          cp "target/${TARGET}/release/sshm-rs"   "${STAGING}/"
+          cp "target/${TARGET}/release/sshm-term" "${STAGING}/"
+          tar -czf "${STAGING}.tar.gz" -C "${STAGING}" sshm-rs sshm-term
+          echo "ASSET=${STAGING}.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $version  = "${{ github.ref_name }}"
+          $target   = "${{ matrix.target }}"
+          $staging  = "sshm-rs-${version}-${target}"
+          New-Item -ItemType Directory -Force -Path $staging | Out-Null
+          Copy-Item "target\$target\release\sshm-rs.exe"   "$staging\"
+          Copy-Item "target\$target\release\sshm-term.exe" "$staging\"
+          Compress-Archive -Path "$staging\*" -DestinationPath "$staging.zip"
+          "ASSET=$staging.zip" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ env.ASSET }}
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**
+          generate_release_notes: true
