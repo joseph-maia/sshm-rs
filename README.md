@@ -41,6 +41,12 @@ A beautiful and performant TUI SSH connection manager written in Rust, with inte
 curl -fsSL https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.sh | bash
 ```
 
+### Quick Install (Windows PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.ps1 | iex
+```
+
 ### From Source
 
 ```bash
