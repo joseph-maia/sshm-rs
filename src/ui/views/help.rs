@@ -139,10 +139,6 @@ pub fn draw(f: &mut Frame, area: Rect) {
             Span::styled("Refresh connectivity status", desc_style),
         ]),
         Line::from(vec![
-            Span::styled("  T        ", key_style),
-            Span::styled("Cycle color theme", desc_style),
-        ]),
-        Line::from(vec![
             Span::styled("  S        ", key_style),
             Span::styled("Command snippets", desc_style),
         ]),

@@ -16,33 +16,9 @@ pub fn init_theme(theme: Theme) {
     let _ = THEME.set(theme);
 }
 
-/// Replace the active theme at runtime (e.g. when the user presses T).
-/// Because OnceLock cannot be reset we store the mutable fallback in a
-/// separate `static`.  We use an `std::sync::RwLock` for the dynamic slot.
-static DYNAMIC_THEME: std::sync::OnceLock<std::sync::RwLock<Option<Theme>>> =
-    std::sync::OnceLock::new();
-
-fn dynamic_store() -> &'static std::sync::RwLock<Option<Theme>> {
-    DYNAMIC_THEME.get_or_init(|| std::sync::RwLock::new(None))
-}
-
-/// Overwrite the active theme without restarting the process.
-pub fn set_theme(theme: Theme) {
-    if let Ok(mut guard) = dynamic_store().write() {
-        *guard = Some(theme);
-    }
-}
-
 /// Return a clone of the currently active theme.
 fn theme() -> Theme {
-    // Dynamic override takes priority.
-    if let Ok(guard) = dynamic_store().read() {
-        if let Some(ref t) = *guard {
-            return t.clone();
-        }
-    }
-    // Fall back to the OnceLock value (set at startup).
-    THEME.get().cloned().unwrap_or_else(Theme::tokyo_night)
+    THEME.get().cloned().unwrap_or_else(Theme::default)
 }
 
 // ---------------------------------------------------------------------------

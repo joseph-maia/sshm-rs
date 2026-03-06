@@ -76,6 +76,8 @@ pub enum Commands {
         #[arg(short = 'c', long = "config")]
         config_file: Option<String>,
     },
+    /// Edit the color theme configuration
+    Theme,
 }
 
 pub fn run(cli: Cli) -> Result<()> {
@@ -99,6 +101,7 @@ pub fn run(cli: Cli) -> Result<()> {
         Some(Commands::Validate { config_file }) => {
             run_validate(config_file.as_deref().or(cli.config_file.as_deref()))
         }
+        Some(Commands::Theme) => run_theme(),
         None => {
             if let Some(host_name) = cli.host {
                 connect_to_host(
@@ -315,6 +318,65 @@ fn run_validate(config_file: Option<&str>) -> Result<()> {
         }
         eprintln!("\n{} warning(s) found.", warnings.len());
         std::process::exit(1);
+    }
+}
+
+/// Open the theme config file in the user's preferred editor.
+fn run_theme() -> Result<()> {
+    let path = crate::theme::Theme::ensure_config_file()?;
+
+    println!("Opening theme config: {}", path.display());
+
+    let editor = resolve_editor();
+    let mut cmd = std::process::Command::new(&editor);
+    cmd.arg(&path);
+    if editor.contains("code") {
+        cmd.arg("--wait");
+    }
+    let status = cmd.status();
+
+    match status {
+        Ok(s) if s.success() => {
+            println!("Theme updated. Restart sshm-rs to apply changes.");
+        }
+        Ok(_) => {
+            eprintln!("Editor exited with an error.");
+        }
+        Err(e) => {
+            eprintln!("Failed to open editor '{}': {}", editor, e);
+        }
+    }
+
+    Ok(())
+}
+
+/// Resolve the editor to use: $EDITOR, $VISUAL, code, then a platform fallback.
+fn resolve_editor() -> String {
+    if let Ok(e) = std::env::var("EDITOR") {
+        if !e.is_empty() {
+            return e;
+        }
+    }
+    if let Ok(e) = std::env::var("VISUAL") {
+        if !e.is_empty() {
+            return e;
+        }
+    }
+    // Check if `code` (VS Code) is available
+    let which_cmd = if cfg!(target_os = "windows") { "where" } else { "which" };
+    if std::process::Command::new(which_cmd)
+        .arg("code")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
+        return "code".to_string();
+    }
+    // Platform fallback
+    if cfg!(target_os = "windows") {
+        "notepad".to_string()
+    } else {
+        "nano".to_string()
     }
 }
 

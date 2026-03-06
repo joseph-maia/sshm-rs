@@ -202,9 +202,6 @@ pub struct App {
     // Config validation warnings
     pub config_warnings: Vec<String>,
 
-    // Theme cycling
-    pub theme_index: usize,
-
     // Command broadcast
     pub broadcast_command: String,
     pub broadcast_error: Option<String>,
@@ -285,7 +282,6 @@ impl App {
             sidebar_active_tag: None,
             sidebar_focused: false,
             config_warnings,
-            theme_index: 0,
             broadcast_command: String::new(),
             broadcast_error: None,
             pending_broadcast: None,

@@ -1,5 +1,6 @@
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Theme {
@@ -17,13 +18,19 @@ pub struct Theme {
     pub selection_bg: [u8; 3],
 }
 
+impl Default for Theme {
+    fn default() -> Self {
+        Self::tokyo_night()
+    }
+}
+
 impl Theme {
     #[allow(dead_code)]
     pub fn color(&self, rgb: [u8; 3]) -> Color {
         Color::Rgb(rgb[0], rgb[1], rgb[2])
     }
 
-    /// Tokyo Night — the original hardcoded palette.
+    /// Tokyo Night — the default palette.
     pub fn tokyo_night() -> Self {
         Self {
             name: "Tokyo Night".to_string(),
@@ -41,61 +48,38 @@ impl Theme {
         }
     }
 
-    /// High Contrast — pure black background, bright ANSI-style colors.
-    pub fn high_contrast() -> Self {
-        Self {
-            name: "High Contrast".to_string(),
-            bg: [0x00, 0x00, 0x00],
-            fg: [0xff, 0xff, 0xff],
-            primary: [0x00, 0xaf, 0xff],
-            green: [0x00, 0xff, 0x00],
-            red: [0xff, 0x00, 0x00],
-            yellow: [0xff, 0xff, 0x00],
-            muted: [0x80, 0x80, 0x80],
-            cyan: [0x00, 0xff, 0xff],
-            purple: [0xff, 0x00, 0xff],
-            orange: [0xff, 0x87, 0x00],
-            selection_bg: [0x00, 0x5f, 0xaf],
-        }
+    /// Returns the path to `theme.json` in the sshm-rs config directory.
+    pub fn config_path() -> PathBuf {
+        crate::config::sshm_config_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join("theme.json")
     }
 
-    /// Light — dark text on a light background.
-    pub fn light() -> Self {
-        Self {
-            name: "Light".to_string(),
-            bg: [0xf8, 0xf8, 0xf2],
-            fg: [0x28, 0x28, 0x28],
-            primary: [0x00, 0x5f, 0xd7],
-            green: [0x00, 0x87, 0x00],
-            red: [0xc0, 0x00, 0x00],
-            yellow: [0x87, 0x5f, 0x00],
-            muted: [0x60, 0x60, 0x60],
-            cyan: [0x00, 0x5f, 0x87],
-            purple: [0x5f, 0x00, 0xaf],
-            orange: [0xd7, 0x5f, 0x00],
-            selection_bg: [0xaf, 0xd7, 0xff],
+    /// If `theme.json` does not exist, create it with the default theme serialized as
+    /// pretty JSON. Returns the path in either case.
+    pub fn ensure_config_file() -> anyhow::Result<PathBuf> {
+        let path = Self::config_path();
+        if !path.exists() {
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let json = serde_json::to_string_pretty(&Self::default())?;
+            std::fs::write(&path, json)?;
         }
+        Ok(path)
     }
 
-    /// Load a theme from `~/.config/sshm-rs/theme.json` (or platform equivalent).
-    /// Falls back to Tokyo Night if the file does not exist or cannot be parsed.
+    /// Load a theme from `theme.json` (or platform equivalent).
+    /// Falls back to `Theme::default()` if the file does not exist or cannot be parsed.
     pub fn load() -> Self {
-        let config_dir = crate::config::sshm_config_dir().ok();
-        if let Some(dir) = config_dir {
-            let path = dir.join("theme.json");
-            if path.exists() {
-                if let Ok(data) = std::fs::read_to_string(&path) {
-                    if let Ok(theme) = serde_json::from_str::<Theme>(&data) {
-                        return theme;
-                    }
+        let path = Self::config_path();
+        if path.exists() {
+            if let Ok(data) = std::fs::read_to_string(&path) {
+                if let Ok(theme) = serde_json::from_str::<Theme>(&data) {
+                    return theme;
                 }
             }
         }
-        Self::tokyo_night()
-    }
-
-    /// All built-in themes, in cycle order.
-    pub fn builtin_themes() -> Vec<Self> {
-        vec![Self::tokyo_night(), Self::high_contrast(), Self::light()]
+        Self::default()
     }
 }
