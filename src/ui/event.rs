@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 use crate::theme::Theme;
 use crate::ui::app::{AddField, App, DisplayRow, ViewMode};
 use crate::ui::styles;
+use crate::ui::views::list::{TITLE_HEIGHT, TITLE_HEIGHT_COMPACT};
 
 /// Poll for crossterm events, returning true if the terminal was resized.
 pub fn poll_event(app: &mut App) -> anyhow::Result<bool> {
@@ -102,8 +103,8 @@ fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 return;
             }
 
-            // Layout: title (5 or 1 lines) + search bar (3 lines) + table border (1 line) + header (1 line)
-            let title_height: u16 = if app.height < 20 { 1 } else { 5 };
+            // Layout: title (9 or 1 lines) + search bar (3 lines) + table border (1 line) + header (1 line)
+            let title_height: u16 = if app.height < 20 { TITLE_HEIGHT_COMPACT } else { TITLE_HEIGHT };
             let table_top_offset: u16 = title_height + 3 + 1 + 1;
             // Account for sidebar offset on x-coordinate
             let x_offset: u16 = if app.show_sidebar { 20 } else { 0 };

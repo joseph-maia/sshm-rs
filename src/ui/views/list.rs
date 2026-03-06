@@ -19,6 +19,9 @@ const ASCII_TITLE: &str = r#"
  \______/  \______/ |__/  |__/|__/     |__/        |__/  |__/ \______/
 "#;
 
+pub const TITLE_HEIGHT: u16 = 9;
+pub const TITLE_HEIGHT_COMPACT: u16 = 1;
+
 pub fn draw(f: &mut Frame, app: &App) {
     let area = f.area();
 
@@ -28,7 +31,7 @@ pub fn draw(f: &mut Frame, app: &App) {
 
     // Responsive layout: compact title when terminal is small
     let compact = area.height < 20;
-    let title_height = if compact { 1 } else { 9 };
+    let title_height = if compact { TITLE_HEIGHT_COMPACT } else { TITLE_HEIGHT };
 
     let draw_content = |f: &mut Frame, content_area: Rect| {
         let chunks = Layout::vertical([
