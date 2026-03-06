@@ -13,40 +13,94 @@ use ratatui::{
 
 fn file_icon(name: &str, is_dir: bool) -> (&'static str, Color) {
     if name == ".." {
-        return ("\u{21a9} ", Color::Yellow);
+        return ("󰜱 ", Color::Yellow);
     }
     if is_dir {
-        return ("\u{25b8} ", Color::Blue);
+        return (" ", Color::Rgb(0x00, 0xbc, 0xd4));
     }
-    if name.starts_with('.') {
-        let ext = name.rsplit('.').next().unwrap_or("").to_lowercase();
-        match ext.as_str() {
-            "env" | "secret" | "pem" | "key" | "crt" | "pub" => return ("\u{229f} ", Color::Red),
-            "lock" => return ("\u{229f} ", Color::DarkGray),
-            _ => return ("\u{00b7} ", Color::DarkGray),
+
+    let name_lower = name.to_lowercase();
+    let by_name: Option<(&str, Color)> = match name_lower.as_str() {
+        ".gitignore" | ".gitconfig" | ".gitmodules" | ".gitattributes" => {
+            Some((" ", Color::Rgb(0xf5, 0x4d, 0x27)))
         }
+        ".env" => Some((" ", Color::Rgb(0xfa, 0xf7, 0x43))),
+        ".dockerignore"
+        | "dockerfile"
+        | "docker-compose.yml"
+        | "docker-compose.yaml"
+        | "compose.yml"
+        | "compose.yaml" => Some(("󰡨 ", Color::Rgb(0x45, 0x8e, 0xe6))),
+        ".bashrc" | ".bash_profile" | ".zshrc" | ".zshenv" | ".zprofile" => {
+            Some((" ", Color::Rgb(0x89, 0xe0, 0x51)))
+        }
+        "makefile" => Some((" ", Color::Rgb(0x6d, 0x80, 0x86))),
+        "cargo.toml" | "cargo.lock" => Some((" ", Color::Rgb(0xde, 0xa5, 0x84))),
+        "license" | "licence" | "copying" => Some((" ", Color::Rgb(0xcb, 0xcb, 0x41))),
+        "readme.md" | "readme" => Some((" ", Color::Rgb(0xdd, 0xdd, 0xdd))),
+        _ => None,
+    };
+    if let Some(result) = by_name {
+        return result;
     }
+
     let ext = name.rsplit('.').next().unwrap_or("").to_lowercase();
     match ext.as_str() {
-        "rs" => ("\u{2699} ", Color::Rgb(0xde, 0x6d, 0x2c)),
-        "toml" | "yml" | "yaml" | "json" | "xml" | "ini" | "cfg" | "conf" => {
-            ("\u{2630} ", Color::Cyan)
+        "rs" => (" ", Color::Rgb(0xde, 0xa5, 0x84)),
+        "toml" => (" ", Color::Rgb(0x9c, 0x42, 0x21)),
+        "yml" | "yaml" => (" ", Color::Rgb(0x6d, 0x80, 0x86)),
+        "json" => (" ", Color::Rgb(0xcb, 0xcb, 0x41)),
+        "xml" => ("󰗀 ", Color::Rgb(0xe3, 0x79, 0x33)),
+        "ini" | "cfg" | "conf" => (" ", Color::Rgb(0x6d, 0x80, 0x86)),
+        "md" => (" ", Color::Rgb(0xdd, 0xdd, 0xdd)),
+        "txt" => ("󰈙 ", Color::Rgb(0x89, 0xe0, 0x51)),
+        "pdf" => (" ", Color::Rgb(0xb3, 0x0b, 0x00)),
+        "doc" | "docx" => ("󰈬 ", Color::Rgb(0x18, 0x5a, 0xbd)),
+        "xls" | "xlsx" => ("󰈛 ", Color::Rgb(0x20, 0x72, 0x45)),
+        "ppt" | "pptx" => ("󰈧 ", Color::Rgb(0xcb, 0x4a, 0x32)),
+        "csv" => (" ", Color::Rgb(0x89, 0xe0, 0x51)),
+        "html" => (" ", Color::Rgb(0xe4, 0x4d, 0x26)),
+        "css" => (" ", Color::Rgb(0x66, 0x33, 0x99)),
+        "js" => (" ", Color::Rgb(0xcb, 0xcb, 0x41)),
+        "jsx" => (" ", Color::Rgb(0x20, 0xc2, 0xe3)),
+        "ts" => (" ", Color::Rgb(0x51, 0x9a, 0xba)),
+        "tsx" => (" ", Color::Rgb(0x13, 0x54, 0xbf)),
+        "py" => (" ", Color::Rgb(0xff, 0xbc, 0x03)),
+        "go" => (" ", Color::Rgb(0x00, 0xad, 0xd8)),
+        "c" => (" ", Color::Rgb(0x59, 0x9e, 0xff)),
+        "cpp" | "cc" | "cxx" => (" ", Color::Rgb(0x51, 0x9a, 0xba)),
+        "h" | "hpp" => (" ", Color::Rgb(0xa0, 0x74, 0xc4)),
+        "java" => (" ", Color::Rgb(0xcc, 0x3e, 0x44)),
+        "rb" => (" ", Color::Rgb(0x70, 0x15, 0x16)),
+        "lua" => (" ", Color::Rgb(0x51, 0xa0, 0xcf)),
+        "sql" => (" ", Color::Rgb(0xda, 0xd8, 0xd8)),
+        "vim" => (" ", Color::Rgb(0x01, 0x98, 0x33)),
+        "wasm" => (" ", Color::Rgb(0x5c, 0x4c, 0xdb)),
+        "sh" => (" ", Color::Rgb(0x4d, 0x5a, 0x5e)),
+        "bash" => (" ", Color::Rgb(0x89, 0xe0, 0x51)),
+        "zsh" => (" ", Color::Rgb(0x89, 0xe0, 0x51)),
+        "fish" => (" ", Color::Rgb(0x4d, 0x5a, 0x5e)),
+        "tar" | "gz" | "tgz" | "bz2" | "xz" | "7z" | "rar" | "zip" => {
+            (" ", Color::Rgb(0xec, 0xa5, 0x17))
         }
-        "md" | "txt" | "rst" | "doc" | "docx" | "pdf" => ("\u{2637} ", Color::White),
-        "py" | "js" | "ts" | "go" | "c" | "cpp" | "h" | "java" | "rb" | "sh" | "bash"
-        | "zsh" | "fish" | "pl" => ("\u{2699} ", Color::Green),
-        "tar" | "gz" | "zip" | "7z" | "rar" | "bz2" | "xz" | "tgz" => {
-            ("\u{229e} ", Color::Red)
-        }
-        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "svg" | "ico" | "webp" => {
-            ("\u{25a3} ", Color::Magenta)
-        }
-        "mp3" | "wav" | "flac" | "ogg" | "aac" | "m4a" => ("\u{266a} ", Color::Magenta),
-        "mp4" | "avi" | "mkv" | "mov" | "wmv" | "webm" => ("\u{25b6} ", Color::Magenta),
-        "log" => ("\u{2630} ", Color::DarkGray),
-        "lock" => ("\u{229f} ", Color::DarkGray),
-        "env" | "secret" | "pem" | "key" | "crt" | "pub" => ("\u{229f} ", Color::Red),
-        _ => ("\u{00b7} ", Color::White),
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" => (" ", Color::Rgb(0xa0, 0x74, 0xc4)),
+        "svg" => ("󰜡 ", Color::Rgb(0xff, 0xb1, 0x3b)),
+        "ico" => (" ", Color::Rgb(0xcb, 0xcb, 0x41)),
+        "mp3" | "wav" | "flac" | "ogg" | "aac" => (" ", Color::Rgb(0x00, 0xaf, 0xff)),
+        "mp4" | "avi" | "mkv" | "mov" | "webm" => (" ", Color::Rgb(0xfd, 0x97, 0x1f)),
+        "exe" | "bin" => (" ", Color::Rgb(0x9f, 0x05, 0x00)),
+        "so" | "o" => (" ", Color::Rgb(0xdc, 0xdd, 0xd6)),
+        "dll" => (" ", Color::Rgb(0x4d, 0x2c, 0x0b)),
+        "deb" | "rpm" => (" ", Color::Rgb(0xd0, 0xbe, 0xc8)),
+        "dmg" | "iso" | "img" => (" ", Color::Rgb(0xd0, 0xbe, 0xc8)),
+        "log" => ("󰌱 ", Color::Rgb(0xdd, 0xdd, 0xdd)),
+        "lock" => (" ", Color::Rgb(0xbb, 0xbb, 0xbb)),
+        "env" => (" ", Color::Rgb(0xfa, 0xf7, 0x43)),
+        "pem" | "key" | "crt" => ("󰌆 ", Color::Rgb(0xe3, 0xc5, 0x8e)),
+        "pub" => ("󰷖 ", Color::Rgb(0xe3, 0xc5, 0x8e)),
+        "ttf" | "otf" | "woff" | "woff2" => (" ", Color::Rgb(0xec, 0xec, 0xec)),
+        _ if name.starts_with('.') => (" ", Color::Rgb(0x6d, 0x80, 0x86)),
+        _ => (" ", Color::Rgb(0x6d, 0x80, 0x86)),
     }
 }
 
@@ -58,8 +112,8 @@ fn filename_color(name: &str, is_dir: bool, permissions: u32) -> Style {
     }
     let ext = name.rsplit('.').next().unwrap_or("").to_lowercase();
     match ext.as_str() {
-        "tar" | "gz" | "zip" | "7z" | "rar" | "bz2" | "xz" | "tgz" => {
-            return Style::default().fg(Color::Red);
+        "tar" | "gz" | "tgz" | "bz2" | "xz" | "7z" | "rar" | "zip" => {
+            return Style::default().fg(Color::Rgb(0xec, 0xa5, 0x17));
         }
         _ => {}
     }
