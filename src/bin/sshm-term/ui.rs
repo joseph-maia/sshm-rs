@@ -11,6 +11,67 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
 };
 
+fn file_icon(name: &str, is_dir: bool) -> (&'static str, Color) {
+    if name == ".." {
+        return ("\u{21a9} ", Color::Yellow);
+    }
+    if is_dir {
+        return ("\u{25b8} ", Color::Blue);
+    }
+    if name.starts_with('.') {
+        let ext = name.rsplit('.').next().unwrap_or("").to_lowercase();
+        match ext.as_str() {
+            "env" | "secret" | "pem" | "key" | "crt" | "pub" => return ("\u{229f} ", Color::Red),
+            "lock" => return ("\u{229f} ", Color::DarkGray),
+            _ => return ("\u{00b7} ", Color::DarkGray),
+        }
+    }
+    let ext = name.rsplit('.').next().unwrap_or("").to_lowercase();
+    match ext.as_str() {
+        "rs" => ("\u{2699} ", Color::Rgb(0xde, 0x6d, 0x2c)),
+        "toml" | "yml" | "yaml" | "json" | "xml" | "ini" | "cfg" | "conf" => {
+            ("\u{2630} ", Color::Cyan)
+        }
+        "md" | "txt" | "rst" | "doc" | "docx" | "pdf" => ("\u{2637} ", Color::White),
+        "py" | "js" | "ts" | "go" | "c" | "cpp" | "h" | "java" | "rb" | "sh" | "bash"
+        | "zsh" | "fish" | "pl" => ("\u{2699} ", Color::Green),
+        "tar" | "gz" | "zip" | "7z" | "rar" | "bz2" | "xz" | "tgz" => {
+            ("\u{229e} ", Color::Red)
+        }
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "svg" | "ico" | "webp" => {
+            ("\u{25a3} ", Color::Magenta)
+        }
+        "mp3" | "wav" | "flac" | "ogg" | "aac" | "m4a" => ("\u{266a} ", Color::Magenta),
+        "mp4" | "avi" | "mkv" | "mov" | "wmv" | "webm" => ("\u{25b6} ", Color::Magenta),
+        "log" => ("\u{2630} ", Color::DarkGray),
+        "lock" => ("\u{229f} ", Color::DarkGray),
+        "env" | "secret" | "pem" | "key" | "crt" | "pub" => ("\u{229f} ", Color::Red),
+        _ => ("\u{00b7} ", Color::White),
+    }
+}
+
+fn filename_color(name: &str, is_dir: bool, permissions: u32) -> Style {
+    if is_dir {
+        return Style::default()
+            .fg(Color::Blue)
+            .add_modifier(Modifier::BOLD);
+    }
+    let ext = name.rsplit('.').next().unwrap_or("").to_lowercase();
+    match ext.as_str() {
+        "tar" | "gz" | "zip" | "7z" | "rar" | "bz2" | "xz" | "tgz" => {
+            return Style::default().fg(Color::Red);
+        }
+        _ => {}
+    }
+    if name.starts_with('.') {
+        return Style::default().fg(Color::DarkGray);
+    }
+    if permissions & 0o111 != 0 {
+        return Style::default().fg(Color::Green);
+    }
+    Style::default()
+}
+
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     app.frame_area = area;
@@ -143,13 +204,9 @@ fn render_sftp(frame: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
         .entries
         .iter()
         .map(|e| {
-            let (icon, icon_style) = if e.name == ".." {
-                ("↩ ", Style::default().fg(Color::Yellow))
-            } else if e.is_dir {
-                ("d ", Style::default().fg(Color::Blue))
-            } else {
-                ("  ", Style::default())
-            };
+            let (icon, icon_color) = file_icon(&e.name, e.is_dir);
+            let icon_style = Style::default().fg(icon_color);
+            let name_style = filename_color(&e.name, e.is_dir, e.permissions);
 
             let name_truncated = if e.name.chars().count() > name_col {
                 let truncated: String = e.name.chars().take(name_col.saturating_sub(1)).collect();
@@ -172,7 +229,7 @@ fn render_sftp(frame: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
 
             let line = Line::from(vec![
                 Span::styled(icon, icon_style),
-                Span::raw(name_truncated),
+                Span::styled(name_truncated, name_style),
                 Span::raw(" "),
                 Span::styled(size_str, Style::default().fg(Color::Green)),
                 Span::raw(" "),
