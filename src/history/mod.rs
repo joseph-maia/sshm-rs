@@ -119,7 +119,7 @@ impl HistoryManager {
             std::fs::create_dir_all(parent)?;
         }
         let data = serde_json::to_string_pretty(&self)?;
-        std::fs::write(&self.file_path, data)?;
+        crate::config::write_private(&self.file_path, &data)?;
         Ok(())
     }
 }

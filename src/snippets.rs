@@ -51,7 +51,7 @@ impl SnippetManager {
             std::fs::create_dir_all(parent)?;
         }
         let json = serde_json::to_string_pretty(&self.snippets)?;
-        std::fs::write(&self.file_path, json)?;
+        crate::config::write_private(&self.file_path, &json)?;
         Ok(())
     }
 

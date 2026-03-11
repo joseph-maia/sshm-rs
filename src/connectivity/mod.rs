@@ -426,12 +426,35 @@ fn key_event_to_bytes(key: &crossterm::event::KeyEvent) -> Vec<u8> {
     }
 }
 
+/// Validate a port-forwarding argument string.
+/// Each whitespace-separated token must be a -L/-R/-D flag (optionally with its
+/// spec joined, e.g. "-L8080:host:80") or a bare port-forward spec containing
+/// only digits, colons, dots, and brackets. Any other token (e.g. "-o", "--option")
+/// is rejected to prevent SSH flag injection.
+fn validate_pf_arg(arg: &str) -> bool {
+    let parts: Vec<&str> = arg.split_whitespace().collect();
+    parts.iter().all(|p| {
+        p.starts_with("-L")
+            || p.starts_with("-R")
+            || p.starts_with("-D")
+            || p.chars()
+                .all(|c| c.is_ascii_digit() || c == ':' || c == '.' || c == '[' || c == ']')
+    })
+}
+
 /// Connect to an SSH host with port forwarding arguments.
 pub fn connect_ssh_with_port_forward(
     host: &str,
     pf_arg: &str,
     config_file: Option<&str>,
 ) -> Result<()> {
+    if !validate_pf_arg(pf_arg) {
+        anyhow::bail!(
+            "Invalid port-forwarding argument: {:?}. Only -L/-R/-D flags and port specs are allowed.",
+            pf_arg
+        );
+    }
+
     let mut cmd = std::process::Command::new("ssh");
 
     if let Some(cfg) = config_file {
@@ -507,55 +530,19 @@ pub fn broadcast_command(hosts: &[&str], command: &str, config_file: Option<&str
     Ok(())
 }
 
-/// Launch an interactive SFTP session to the given host.
-pub fn launch_sftp(host: &str, config_file: Option<&str>) -> Result<()> {
-    let mut cmd = std::process::Command::new("sftp");
-
-    if let Some(cfg) = config_file {
-        cmd.args(["-F", cfg]);
-    }
-
-    cmd.arg(host);
-
-    cmd.stdin(std::process::Stdio::inherit())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit());
-
-    cmd.status()?;
-    Ok(())
-}
-
-/// Launch an SCP file transfer.
-pub fn launch_scp(
-    host: &str,
-    local_path: &str,
-    remote_path: &str,
-    upload: bool,
-    config_file: Option<&str>,
-) -> Result<()> {
-    let mut cmd = std::process::Command::new("scp");
-
-    if let Some(cfg) = config_file {
-        cmd.args(["-F", cfg]);
-    }
-
-    if upload {
-        cmd.arg(local_path);
-        cmd.arg(format!("{}:{}", host, remote_path));
-    } else {
-        cmd.arg(format!("{}:{}", host, remote_path));
-        cmd.arg(local_path);
-    }
-
-    cmd.stdin(std::process::Stdio::inherit())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit());
-
-    cmd.status()?;
-    Ok(())
-}
-
 /// Launch the sshm-term companion app for integrated terminal + SFTP.
+/// Check if a program name can be found on PATH.
+fn which_exists(program: &str) -> bool {
+    std::env::var_os("PATH")
+        .map(|paths| {
+            std::env::split_paths(&paths).any(|dir| {
+                let candidate = dir.join(program);
+                candidate.is_file()
+            })
+        })
+        .unwrap_or(false)
+}
+
 pub fn launch_sshm_term(host: &str, config_file: Option<&str>) -> Result<()> {
     let config_path = match config_file {
         Some(p) => std::path::PathBuf::from(p),
@@ -610,7 +597,15 @@ pub fn launch_sshm_term(host: &str, config_file: Option<&str>) -> Result<()> {
             let program = if sshm_term_path.exists() {
                 sshm_term_path.to_string_lossy().to_string()
             } else {
-                "sshm-term".to_string()
+                // Check if sshm-term is on PATH
+                let fallback = "sshm-term".to_string();
+                if which_exists(&fallback) {
+                    fallback
+                } else {
+                    anyhow::bail!(
+                        "sshm-term binary not found. Install it with: cargo install --git https://github.com/bit5hift/sshm-rs --bin sshm-term"
+                    );
+                }
             };
 
             let mut cmd = std::process::Command::new(&program);
@@ -645,7 +640,14 @@ pub fn launch_sshm_term(host: &str, config_file: Option<&str>) -> Result<()> {
     let program = if sshm_term_path.exists() {
         sshm_term_path.to_string_lossy().to_string()
     } else {
-        "sshm-term".to_string()
+        let fallback = "sshm-term".to_string();
+        if which_exists(&fallback) {
+            fallback
+        } else {
+            anyhow::bail!(
+                "sshm-term binary not found. Install it with: cargo install --git https://github.com/bit5hift/sshm-rs --bin sshm-term"
+            );
+        }
     };
 
     let mut cmd = std::process::Command::new(&program);

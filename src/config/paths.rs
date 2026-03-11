@@ -32,3 +32,15 @@ pub fn ssh_dir() -> Result<PathBuf> {
     let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Cannot find home directory"))?;
     Ok(home.join(".ssh"))
 }
+
+/// Write data to a file and set permissions to 0o600 (owner-only read/write).
+/// On non-Unix platforms the file is written without changing permissions.
+pub fn write_private(path: &std::path::Path, data: &str) -> Result<()> {
+    std::fs::write(path, data)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+    }
+    Ok(())
+}

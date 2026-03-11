@@ -7,6 +7,15 @@ mod terminal;
 mod transfer;
 mod ui;
 
+#[allow(unused_imports, dead_code)]
+#[path = "../../config/mod.rs"]
+mod config;
+#[allow(dead_code)]
+#[path = "../../theme.rs"]
+mod theme;
+#[path = "../../ui/styles.rs"]
+pub mod term_styles;
+
 use anyhow::Result;
 use app::App;
 use clap::Parser;
@@ -43,8 +52,21 @@ struct Args {
     password: bool,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
+    // SAFETY: Read and clear SSHM_PASSWORD before the tokio runtime starts any
+    // worker threads. std::env::remove_var is unsound when called concurrently
+    // with other env reads; doing it here, before tokio::Runtime::new(), ensures
+    // no other threads exist yet.
+    let env_password = std::env::var("SSHM_PASSWORD").ok();
+    if env_password.is_some() {
+        // SAFETY: No threads are running at this point.
+        unsafe { std::env::remove_var("SSHM_PASSWORD") };
+    }
+
+    tokio::runtime::Runtime::new()?.block_on(async_main(env_password))
+}
+
+async fn async_main(env_password: Option<String>) -> Result<()> {
     let args = Args::parse();
 
     let (user, host) = parse_target(&args.host, &args.user);
@@ -52,10 +74,10 @@ async fn main() -> Result<()> {
     let auth = if let Some(key_path) = args.key {
         Auth::PublicKey(key_path)
     } else if args.password {
-        // Check env var first (set by sshm-rs launcher), then prompt interactively
-        let pw = if let Ok(env_pw) = std::env::var("SSHM_PASSWORD") {
-            std::env::remove_var("SSHM_PASSWORD");
-            env_pw
+        // Use password from env (already read and cleared before runtime started),
+        // or prompt interactively if it was not set.
+        let pw = if let Some(pw) = env_password {
+            pw
         } else {
             rpassword::prompt_password(format!("{}@{}'s password: ", user, host))
                 .map_err(|e| anyhow::anyhow!("Failed to read password: {}", e))?
@@ -64,6 +86,9 @@ async fn main() -> Result<()> {
     } else {
         Auth::AutoDetect
     };
+
+    let theme = theme::Theme::load();
+    term_styles::init_theme(theme);
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
