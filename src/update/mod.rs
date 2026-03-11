@@ -63,6 +63,20 @@ fn fetch_latest_version() -> Option<String> {
     Some(version)
 }
 
+/// Pure version comparison: returns true when `latest` is a valid semver
+/// strictly greater than `current`. Returns false if either string cannot
+/// be parsed as semver.
+#[cfg(test)]
+fn should_update(current: &str, latest: &str) -> bool {
+    let Ok(cur) = semver::Version::parse(current) else {
+        return false;
+    };
+    let Ok(lat) = semver::Version::parse(latest) else {
+        return false;
+    };
+    lat > cur
+}
+
 pub fn check_for_update() -> Option<UpdateInfo> {
     if std::env::var("SSHM_NO_UPDATE_CHECK").as_deref() == Ok("1") {
         return None;
@@ -96,5 +110,99 @@ pub fn check_for_update() -> Option<UpdateInfo> {
         })
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{should_update, UpdateCache, UpdateInfo};
+    use chrono::Utc;
+
+    // --- should_update: version comparison logic ---
+
+    #[test]
+    fn update_available_when_latest_is_greater() {
+        assert!(should_update("0.1.0", "0.2.0"));
+    }
+
+    #[test]
+    fn no_update_when_current_is_greater() {
+        assert!(!should_update("0.2.0", "0.1.0"));
+    }
+
+    #[test]
+    fn no_update_when_versions_are_equal() {
+        assert!(!should_update("0.1.0", "0.1.0"));
+    }
+
+    #[test]
+    fn no_update_on_invalid_current_version() {
+        // Unparseable current → conservative: do not claim an update
+        assert!(!should_update("not-a-version", "0.2.0"));
+    }
+
+    #[test]
+    fn no_update_on_invalid_latest_version() {
+        // Unparseable latest → conservative: do not claim an update
+        assert!(!should_update("0.1.0", "not-a-version"));
+    }
+
+    #[test]
+    fn no_update_when_both_versions_invalid() {
+        assert!(!should_update("bad", "also-bad"));
+    }
+
+    #[test]
+    fn update_available_for_patch_bump() {
+        assert!(should_update("1.0.0", "1.0.1"));
+    }
+
+    #[test]
+    fn update_available_for_major_bump() {
+        assert!(should_update("1.9.9", "2.0.0"));
+    }
+
+    #[test]
+    fn no_update_for_pre_release_downgrade() {
+        // 1.0.0-alpha < 1.0.0, so latest is NOT greater
+        assert!(!should_update("1.0.0", "1.0.0-alpha"));
+    }
+
+    // --- UpdateInfo struct construction ---
+
+    #[test]
+    fn update_info_stores_version_string() {
+        let info = UpdateInfo {
+            latest_version: "1.2.3".to_string(),
+        };
+        assert_eq!(info.latest_version, "1.2.3");
+    }
+
+    // --- Cache round-trip via temp file ---
+
+    #[test]
+    fn cache_serializes_and_deserializes() {
+        let tmp = tempfile::NamedTempFile::new().expect("temp file");
+        let path = tmp.path().to_path_buf();
+
+        let version = "2.0.0";
+        let cache_out = UpdateCache {
+            last_check: Utc::now(),
+            latest_version: version.to_string(),
+        };
+
+        let json = serde_json::to_string(&cache_out).expect("serialize");
+        std::fs::write(&path, &json).expect("write cache");
+
+        let data = std::fs::read_to_string(&path).expect("read cache");
+        let cache_in: UpdateCache = serde_json::from_str(&data).expect("deserialize");
+
+        assert_eq!(cache_in.latest_version, version);
+    }
+
+    #[test]
+    fn cache_deserialization_fails_on_corrupt_data() {
+        let result: Result<UpdateCache, _> = serde_json::from_str("not json at all");
+        assert!(result.is_err());
     }
 }

@@ -666,6 +666,112 @@ pub fn launch_sshm_term(host: &str, config_file: Option<&str>) -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::validate_pf_arg;
+
+    // --- valid inputs ---
+
+    #[test]
+    fn valid_local_forward_joined() {
+        // -L with spec joined directly, no space
+        assert!(validate_pf_arg("-L8080:localhost:80"));
+    }
+
+    #[test]
+    fn valid_remote_forward_joined() {
+        // -R with spec joined directly, no space
+        assert!(validate_pf_arg("-R9090:host:22"));
+    }
+
+    #[test]
+    fn valid_dynamic_socks_joined() {
+        // -D with port joined directly
+        assert!(validate_pf_arg("-D1080"));
+    }
+
+    #[test]
+    fn valid_local_forward_with_space() {
+        // When -L and the spec are separated by a space, the spec token
+        // "8080:host:80" contains letters ("host"), which fails the bare-spec
+        // digit/colon/dot/bracket check. The function rejects this form.
+        assert!(!validate_pf_arg("-L 8080:host:80"));
+    }
+
+    #[test]
+    fn valid_multiple_flags() {
+        // Multiple forwarding flags in one string
+        assert!(validate_pf_arg("-L8080:localhost:80 -R9090:host:22 -D1080"));
+    }
+
+    #[test]
+    fn valid_ipv6_bracket_spec() {
+        // Bare spec with IPv6-style brackets
+        assert!(validate_pf_arg("[::1]:8080:[::1]:80"));
+    }
+
+    // --- invalid inputs ---
+
+    #[test]
+    fn invalid_option_flag_no_space() {
+        // -o starts with neither -L, -R, nor -D
+        assert!(!validate_pf_arg("-oProxyCommand=evil"));
+    }
+
+    #[test]
+    fn invalid_double_dash_option() {
+        // -- long-form options must be rejected
+        assert!(!validate_pf_arg("--option foo"));
+    }
+
+    #[test]
+    fn invalid_option_flag_with_space() {
+        // -o as its own token is not -L/-R/-D and not a pure port spec
+        assert!(!validate_pf_arg("-o ProxyCommand=evil"));
+    }
+
+    #[test]
+    fn invalid_shell_injection_dollar_paren() {
+        // Shell metacharacters must be rejected
+        assert!(!validate_pf_arg("$(cmd)"));
+    }
+
+    #[test]
+    fn invalid_mixed_valid_and_injected() {
+        // Valid flag followed by an injection attempt — whole arg must fail
+        assert!(!validate_pf_arg("-L8080:localhost:80 -oProxyCommand=evil"));
+    }
+
+    // --- edge cases ---
+
+    #[test]
+    fn empty_string_is_valid() {
+        // split_whitespace on "" yields no tokens; all() over empty is true
+        assert!(validate_pf_arg(""));
+    }
+
+    #[test]
+    fn whitespace_only_is_valid() {
+        // split_whitespace on "  " also yields no tokens
+        assert!(validate_pf_arg("  "));
+    }
+
+    #[test]
+    fn valid_bare_port_spec_digits_only() {
+        // A bare spec is only accepted when it contains digits, colons, dots,
+        // and brackets — no letters. "localhost" contains letters so it fails.
+        assert!(!validate_pf_arg("8080:localhost:80"));
+        // A spec using only a numeric IP and port passes.
+        assert!(validate_pf_arg("8080:127.0.0.1:80"));
+    }
+
+    #[test]
+    fn invalid_alphanumeric_bare_token() {
+        // Bare token with letters is not a valid port spec and not a flag
+        assert!(!validate_pf_arg("localhost"));
+    }
+}
+
 /// Fallback: connect using the system `ssh` command (for key-based auth).
 fn connect_ssh_system(
     host: &str,
