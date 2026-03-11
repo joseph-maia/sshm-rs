@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 // Connectivity module - SSH ping and connection management
 use anyhow::Result;
 use std::collections::HashMap;
@@ -31,6 +30,7 @@ impl std::fmt::Display for HostStatus {
 /// Result of pinging a single host
 #[derive(Debug, Clone)]
 pub struct PingResult {
+    #[allow(dead_code)]
     pub host_name: String,
     pub status: HostStatus,
 }
@@ -62,6 +62,7 @@ impl PingManager {
     }
 
     /// Get a snapshot of all results.
+    #[allow(dead_code)]
     pub fn get_all_statuses(&self) -> HashMap<String, HostStatus> {
         self.results
             .read()
@@ -89,7 +90,6 @@ impl PingManager {
         for (name, hostname, port) in hosts {
             let tx = tx.clone();
             let results = Arc::clone(&results);
-            let timeout = timeout;
 
             thread::spawn(move || {
                 let result = ping_host_tcp(&name, &hostname, &port, timeout);

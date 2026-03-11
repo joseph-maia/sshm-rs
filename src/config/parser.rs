@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 // SSH config file parser
 // Reference: Go implementation at sshm/internal/config/ssh.go
 //
@@ -57,6 +56,7 @@ impl SshHost {
 // ---------------------------------------------------------------------------
 
 /// Parse the default SSH config file (~/.ssh/config) and return all hosts.
+#[allow(dead_code)]
 pub fn parse_ssh_config_default() -> Result<Vec<SshHost>> {
     let path = default_ssh_config_path()?;
     parse_ssh_config(&path)
@@ -527,9 +527,8 @@ pub fn update_host(host: &SshHost) -> Result<()> {
                 let target_idx = found_names.iter().position(|&n| n == host.name);
                 let next_line_number = i + 2; // 1-indexed
 
-                if target_idx.is_some()
-                    && (host.line_number == 0 || next_line_number == host.line_number)
-                {
+                if let Some(target_idx) = target_idx {
+                  if host.line_number == 0 || next_line_number == host.line_number {
                     host_found = true;
 
                     if is_multi {
@@ -538,7 +537,7 @@ pub fn update_host(host: &SshHost) -> Result<()> {
                             &mut new_lines,
                             &mut i,
                             &found_names,
-                            target_idx.unwrap(),
+                            target_idx,
                             host,
                             true, // has_tags
                         );
@@ -550,6 +549,7 @@ pub fn update_host(host: &SshHost) -> Result<()> {
                         write_host_block(&mut new_lines, host);
                     }
                     continue;
+                  }
                 }
             }
         }
@@ -562,9 +562,8 @@ pub fn update_host(host: &SshHost) -> Result<()> {
             let found_names: Vec<&str> = host_part.split_whitespace().collect();
             let target_idx = found_names.iter().position(|&n| n == host.name);
 
-            if target_idx.is_some()
-                && (host.line_number == 0 || current_line_number == host.line_number)
-            {
+            if let Some(target_idx) = target_idx {
+              if host.line_number == 0 || current_line_number == host.line_number {
                 host_found = true;
 
                 if is_multi {
@@ -573,7 +572,7 @@ pub fn update_host(host: &SshHost) -> Result<()> {
                         &mut new_lines,
                         &mut i,
                         &found_names,
-                        target_idx.unwrap(),
+                        target_idx,
                         host,
                         false,
                     );
@@ -584,6 +583,7 @@ pub fn update_host(host: &SshHost) -> Result<()> {
                     write_host_block(&mut new_lines, host);
                 }
                 continue;
+              }
             }
         }
 
@@ -680,9 +680,8 @@ pub fn delete_host(host: &SshHost) -> Result<()> {
                 let target_idx = found_names.iter().position(|&n| n == host.name);
                 let next_line_number = i + 2;
 
-                if target_idx.is_some()
-                    && (host.line_number == 0 || next_line_number == host.line_number)
-                {
+                if let Some(target_idx) = target_idx {
+                  if host.line_number == 0 || next_line_number == host.line_number {
                     host_found = true;
 
                     if is_multi {
@@ -691,7 +690,7 @@ pub fn delete_host(host: &SshHost) -> Result<()> {
                             &mut new_lines,
                             &mut i,
                             &found_names,
-                            target_idx.unwrap(),
+                            target_idx,
                             true,
                         );
                     } else {
@@ -703,6 +702,7 @@ pub fn delete_host(host: &SshHost) -> Result<()> {
                     // Copy remaining and break (only delete first match)
                     copy_remaining(&lines, &mut new_lines, &mut i);
                     break;
+                  }
                 }
             }
         }
@@ -715,9 +715,8 @@ pub fn delete_host(host: &SshHost) -> Result<()> {
             let found_names: Vec<&str> = host_part.split_whitespace().collect();
             let target_idx = found_names.iter().position(|&n| n == host.name);
 
-            if target_idx.is_some()
-                && (host.line_number == 0 || current_line_number == host.line_number)
-            {
+            if let Some(target_idx) = target_idx {
+              if host.line_number == 0 || current_line_number == host.line_number {
                 host_found = true;
 
                 if is_multi {
@@ -726,7 +725,7 @@ pub fn delete_host(host: &SshHost) -> Result<()> {
                         &mut new_lines,
                         &mut i,
                         &found_names,
-                        target_idx.unwrap(),
+                        target_idx,
                         false,
                     );
                 } else {
@@ -737,6 +736,7 @@ pub fn delete_host(host: &SshHost) -> Result<()> {
 
                 copy_remaining(&lines, &mut new_lines, &mut i);
                 break;
+              }
             }
         }
 
@@ -804,7 +804,7 @@ fn is_multi_host_declaration(host_name: &str, config_path: &Path) -> Result<bool
         if trimmed.to_lowercase().starts_with("host ") {
             let host_part = trimmed[5..].trim();
             let names: Vec<&str> = host_part.split_whitespace().collect();
-            if names.iter().any(|&n| n == host_name) {
+            if names.contains(&host_name) {
                 return Ok(names.len() > 1);
             }
         }
