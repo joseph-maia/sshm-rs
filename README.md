@@ -4,6 +4,8 @@
 [![GitHub release](https://img.shields.io/github/v/release/bit5hift/sshm-rs)](https://github.com/bit5hift/sshm-rs/releases)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/bit5hift/sshm-rs/release.yml)](https://github.com/bit5hift/sshm-rs/actions)
 
+**[Website](https://bit5hift.github.io/sshm-rs/)** | **[Install](#installation)** | **[Features](#highlights)**
+
 A beautiful and performant TUI SSH connection manager written in Rust, with integrated SSH terminal and SFTP browser.
 
 

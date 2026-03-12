@@ -5,6 +5,7 @@ edition = "2021"
 description = "A beautiful TUI SSH connection manager written in Rust"
 license = "MIT"
 repository = "https://github.com/bit5hift/sshm-rs"
+homepage = "https://bit5hift.github.io/sshm-rs/"
 default-run = "sshm-rs"
 
 [[bin]]
