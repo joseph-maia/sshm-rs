@@ -17,6 +17,9 @@ name = "sshm-term"
 path = "src/bin/sshm-term/main.rs"
 
 [dependencies]
+# OpenSSL (vendored to avoid system dependency issues in CI)
+openssl = { version = "0.10", features = ["vendored"] }
+
 # TUI
 ratatui = "0.29"
 crossterm = { version = "0.28", features = ["event-stream"] }
