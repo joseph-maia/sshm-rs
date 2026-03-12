@@ -106,7 +106,7 @@ main() {
   need curl
   need tar
 
-  local os arch target bin_dir version archive_name download_url tmp_dir
+  local os arch target bin_dir version archive_name download_url
 
   os="$(detect_os)"
   arch="$(detect_arch)"
