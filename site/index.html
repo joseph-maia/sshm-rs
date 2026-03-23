@@ -1246,7 +1246,7 @@
         <div>
           <div class="hero-badge reveal">
             <span class="dot"></span>
-            Built with Rust &nbsp;·&nbsp; v0.1
+            Built with Rust &nbsp;·&nbsp; v0.2.0
           </div>
           <h1 class="hero-title reveal reveal-delay-1">
             SSH connection<br />
@@ -1716,17 +1716,18 @@
 
       <div class="install-tabbed reveal">
         <div class="install-tabs">
-          <button class="install-tab active" onclick="switchInstall(0)">Linux / macOS</button>
-          <button class="install-tab" onclick="switchInstall(1)">Cargo</button>
-          <button class="install-tab" onclick="switchInstall(2)">Windows</button>
+          <button class="install-tab active" onclick="switchInstall(0)">Homebrew</button>
+          <button class="install-tab" onclick="switchInstall(1)">Winget</button>
+          <button class="install-tab" onclick="switchInstall(2)">Cargo</button>
+          <button class="install-tab" onclick="switchInstall(3)">Script</button>
         </div>
 
         <div class="install-panel active">
           <div class="code-block">
-            <span class="code-comment"># One-liner install</span><br />
-            <span class="code-cmd">curl</span> <span class="code-flag">-fsSL</span> <span class="code-url">https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.sh</span> <span class="code-pipe">| bash</span>
+            <span class="code-comment"># macOS / Linux — via Homebrew</span><br />
+            <span class="code-cmd">brew</span> <span class="code-flag">tap</span> <span class="code-url">bit5hift/tap</span> <span class="code-pipe">&amp;&amp;</span> <span class="code-cmd">brew</span> <span class="code-flag">install</span> <span class="code-url">sshm-rs</span>
           </div>
-          <button class="copy-btn" onclick="copyCode(this, 'curl -fsSL https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.sh | bash')">
+          <button class="copy-btn" onclick="copyCode(this, 'brew tap bit5hift/tap &amp;&amp; brew install sshm-rs')">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h8a1 1 0 011 1v1" stroke="currentColor" stroke-width="1.5"/></svg>
             Copy
           </button>
@@ -1734,7 +1735,18 @@
 
         <div class="install-panel">
           <div class="code-block">
-            <span class="code-comment"># Install via Cargo (any platform)</span><br />
+            <span class="code-comment"># Windows — via Winget</span><br />
+            <span class="code-cmd">winget</span> <span class="code-flag">install</span> <span class="code-url">bit5hift.sshm-rs</span>
+          </div>
+          <button class="copy-btn" onclick="copyCode(this, 'winget install bit5hift.sshm-rs')">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h8a1 1 0 011 1v1" stroke="currentColor" stroke-width="1.5"/></svg>
+            Copy
+          </button>
+        </div>
+
+        <div class="install-panel">
+          <div class="code-block">
+            <span class="code-comment"># Any platform — build from source</span><br />
             <span class="code-cmd">cargo</span> <span class="code-flag">install</span> <span class="code-flag">--git</span> <span class="code-url">https://github.com/bit5hift/sshm-rs</span>
           </div>
           <button class="copy-btn" onclick="copyCode(this, 'cargo install --git https://github.com/bit5hift/sshm-rs')">
@@ -1745,10 +1757,10 @@
 
         <div class="install-panel">
           <div class="code-block">
-            <span class="code-comment"># PowerShell</span><br />
-            <span class="code-cmd">irm</span> <span class="code-url">https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.ps1</span> <span class="code-pipe">| iex</span>
+            <span class="code-comment"># Linux / macOS — one-liner script</span><br />
+            <span class="code-cmd">curl</span> <span class="code-flag">-fsSL</span> <span class="code-url">https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.sh</span> <span class="code-pipe">| bash</span>
           </div>
-          <button class="copy-btn" onclick="copyCode(this, 'irm https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.ps1 | iex')">
+          <button class="copy-btn" onclick="copyCode(this, 'curl -fsSL https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.sh | bash')">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h8a1 1 0 011 1v1" stroke="currentColor" stroke-width="1.5"/></svg>
             Copy
           </button>

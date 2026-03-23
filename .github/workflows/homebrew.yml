@@ -1,0 +1,57 @@
+name: Update Homebrew Tap
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-tap:
+    name: Update homebrew-tap formula
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tap repo
+        uses: actions/checkout@v4
+        with:
+          repository: bit5hift/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Download release archives and compute SHA256
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          BASE_URL="https://github.com/bit5hift/sshm-rs/releases/download/${VERSION}"
+
+          declare -A TARGETS=(
+            [x86_64-apple-darwin]="__SHA256_PLACEHOLDER_X86_64_APPLE_DARWIN__"
+            [aarch64-apple-darwin]="__SHA256_PLACEHOLDER_AARCH64_APPLE_DARWIN__"
+            [x86_64-unknown-linux-gnu]="__SHA256_PLACEHOLDER_X86_64_LINUX__"
+            [aarch64-unknown-linux-gnu]="__SHA256_PLACEHOLDER_AARCH64_LINUX__"
+          )
+
+          for TARGET in "${!TARGETS[@]}"; do
+            ARCHIVE="sshm-rs-${VERSION}-${TARGET}.tar.gz"
+            curl -fsSL "${BASE_URL}/${ARCHIVE}" -o "${ARCHIVE}"
+            SHA=$(shasum -a 256 "${ARCHIVE}" | awk '{print $1}')
+            PLACEHOLDER="${TARGETS[$TARGET]}"
+            sed -i "s|${PLACEHOLDER}|${SHA}|g" tap/Formula/sshm-rs.rb
+          done
+
+      - name: Update formula version
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          # Strip leading 'v' for the Ruby version field
+          BARE_VERSION="${VERSION#v}"
+          sed -i "s|version \".*\"|version \"${BARE_VERSION}\"|g" tap/Formula/sshm-rs.rb
+
+      - name: Commit and push updated formula
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/sshm-rs.rb
+          git diff --cached --quiet || git commit -m "ci(formula): update sshm-rs to ${VERSION}"
+          git push

@@ -66,7 +66,28 @@ A beautiful and performant TUI SSH connection manager written in Rust, with inte
 
 ## Installation
 
-### Quick Install (Linux/macOS)
+### Homebrew (macOS / Linux)
+
+```bash
+brew tap bit5hift/tap
+brew install sshm-rs
+```
+
+### Windows (winget)
+
+```powershell
+winget install bit5hift.sshm-rs
+```
+
+### Cargo (from source)
+
+```bash
+cargo install --git https://github.com/bit5hift/sshm-rs
+```
+
+### Pre-built binaries
+
+Download from [GitHub Releases](https://github.com/bit5hift/sshm-rs/releases) or use the install script:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.sh | bash
@@ -77,16 +98,6 @@ curl -fsSL https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.sh 
 ```powershell
 irm https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.ps1 | iex
 ```
-
-### From Source
-
-```bash
-cargo install --git https://github.com/bit5hift/sshm-rs
-```
-
-### From GitHub Releases
-
-Download the latest binary for your platform from the [Releases page](https://github.com/bit5hift/sshm-rs/releases/latest).
 
 ## Usage
 

@@ -1,0 +1,23 @@
+PackageIdentifier: bit5hift.sshm-rs
+PackageVersion: 0.2.0
+PackageName: sshm-rs
+Publisher: bit5hift
+License: MIT
+ShortDescription: SSH connection manager with integrated terminal and SFTP browser
+PackageUrl: https://github.com/bit5hift/sshm-rs
+Tags:
+  - ssh
+  - terminal
+  - sftp
+  - tui
+Installers:
+  - Architecture: x64
+    InstallerType: zip
+    InstallerUrl: https://github.com/bit5hift/sshm-rs/releases/download/v0.2.0/sshm-rs-v0.2.0-x86_64-pc-windows-msvc.zip
+    InstallerSha256: __SHA256_PLACEHOLDER_X86_64_WINDOWS__
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: sshm-rs.exe
+        PortableCommandAlias: sshm-rs
+ManifestType: singleton
+ManifestVersion: 1.6.0

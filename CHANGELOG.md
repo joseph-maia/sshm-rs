@@ -7,6 +7,25 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-23
+
+### Changed
+
+- **Mono-binary architecture**: `sshm-term` is now integrated into `sshm-rs` as the `term` subcommand
+  - Single binary install: `cargo install`, `brew`, or `winget`
+  - No more child process spawning — works in corporate IT restricted environments
+  - Usage: `sshm-rs term user@host` replaces the former `sshm-term user@host`
+
+### Fixed
+
+- SSH authentication failure no longer exits the application — returns to the TUI
+- Failed password prompts for immediate re-entry and retries the connection
+- Error toast messages now display in red instead of green
+
+### Removed
+
+- `sshm-term` standalone binary (replaced by `sshm-rs term` subcommand)
+
 ## [0.1.0] - 2026-03-11
 
 ### Added
@@ -23,7 +42,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - Hover highlight on mouse movement
   - Hash-based tag colors for visual grouping
 
-- **sshm-term companion app**: Split-panel SSH terminal + SFTP file browser
+- **Terminal + SFTP browser** (formerly sshm-term, now integrated as `sshm-rs term`): Split-panel SSH terminal + SFTP file browser
   - SSH connection via `russh` with password, public key, and auto-detect authentication
   - Known hosts verification (TOFU) with MITM detection via `~/.ssh/known_hosts`
   - Live interactive terminal panel using `vt100` + `tui-term`
@@ -37,7 +56,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - Follow terminal directory: SFTP auto-syncs with shell `cd` via OSC 7 detection
   - Remote command execution via SSH exec channel with proper exit code handling
   - Downloads open containing folder automatically
-  - CLI interface: `sshm-term user@host [-p port] [-i key]`
+  - CLI interface: `sshm-term user@host [-p port] [-i key]` (now `sshm-rs term`, see 0.2.0)
   - Launch from sshm-rs TUI via `Enter` key
 
 - **Keybinding refactor**
@@ -182,5 +201,6 @@ First beta release.
 
 - Double keypress on Windows (filter `KeyEventKind::Press` only)
 
+[0.2.0]: https://github.com/bit5hift/sshm-rs/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bit5hift/sshm-rs/releases/tag/v0.1.0
 [0.1.0-beta.1]: https://github.com/bit5hift/sshm-rs/releases/tag/v0.1.0-beta.1
