@@ -30,57 +30,71 @@ pub fn run_tui() -> Result<()> {
     // Load and initialise the active theme (reads theme.json if present)
     styles::init_theme(Theme::load());
 
-    // Create app state
+    // Create app state once — persists across connection retry iterations
     let mut app = App::new(hosts, history, config_path);
 
-    // Setup terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    loop {
+        // Reset quit flag so the TUI re-enters cleanly after a failed connection
+        app.should_quit = false;
 
-    // Main event loop
-    let result = run_loop(&mut terminal, &mut app);
+        // Setup terminal
+        enable_raw_mode()?;
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        let backend = CrosstermBackend::new(stdout);
+        let mut terminal = Terminal::new(backend)?;
 
-    // Restore terminal
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
-    terminal.show_cursor()?;
+        // Main event loop
+        let result = run_loop(&mut terminal, &mut app);
 
-    result?;
+        // Restore terminal
+        disable_raw_mode()?;
+        execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+        terminal.show_cursor()?;
 
-    // If the user chose to connect, exec ssh
-    if let Some(action) = app.connect_host.take() {
-        let pf_args = app.port_forward_args.take();
+        result?;
 
-        if let Some(host_name) = action.strip_prefix("__sshm_term__:") {
-            if let Some(ref mut history) = app.history {
-                let _ = history.record_connection(host_name);
-            }
-            crate::connectivity::launch_sshm_term(host_name, None)?;
-        } else if let Some(ref pf_arg) = pf_args {
-            if let Some(command) = pf_arg.strip_prefix("__snippet__:") {
-                if let Some(ref mut history) = app.history {
-                    let _ = history.record_connection(&action);
+        // If the user chose to connect, attempt the connection
+        if let Some(action) = app.connect_host.take() {
+            let pf_args = app.port_forward_args.take();
+
+            let conn_result = if let Some(host_name) = action.strip_prefix("__sshm_term__:") {
+                crate::connectivity::launch_sshm_term(host_name, None).map(|_| Some(host_name.to_string()))
+            } else if let Some(ref pf_arg) = pf_args {
+                if let Some(command) = pf_arg.strip_prefix("__snippet__:") {
+                    let args: Vec<String> = command.split_whitespace().map(String::from).collect();
+                    crate::connectivity::connect_ssh(&action, &args, None, true).map(|_| Some(action.clone()))
+                } else {
+                    crate::connectivity::connect_ssh_with_port_forward(&action, pf_arg, None).map(|_| None)
                 }
-                let args: Vec<String> = command.split_whitespace().map(String::from).collect();
-                crate::connectivity::connect_ssh(&action, &args, None, true)?;
             } else {
-                crate::connectivity::connect_ssh_with_port_forward(&action, pf_arg, None)?;
-            }
-        } else {
-            if let Some(ref mut history) = app.history {
-                let _ = history.record_connection(&action);
-            }
-            crate::connectivity::connect_ssh(&action, &[], None, false)?;
-        }
-    }
+                crate::connectivity::connect_ssh(&action, &[], None, false).map(|_| Some(action.clone()))
+            };
 
-    // If the user triggered a broadcast, run it now
-    if let Some((hosts, command)) = app.pending_broadcast.take() {
-        let host_refs: Vec<&str> = hosts.iter().map(String::as_str).collect();
-        crate::connectivity::broadcast_command(&host_refs, &command, None)?;
+            match conn_result {
+                Ok(Some(host_name)) => {
+                    // Record history only on success
+                    if let Some(ref mut history) = app.history {
+                        let _ = history.record_connection(&host_name);
+                    }
+                    break;
+                }
+                Ok(None) => break,
+                Err(e) => {
+                    // Connection failed — show the error in the TUI and retry
+                    app.show_toast(&format!("Connection failed: {e}"));
+                    continue;
+                }
+            }
+        } else if let Some((hosts, command)) = app.pending_broadcast.take() {
+            // User triggered a broadcast — run it now and exit
+            let host_refs: Vec<&str> = hosts.iter().map(String::as_str).collect();
+            crate::connectivity::broadcast_command(&host_refs, &command, None)?;
+            break;
+        } else {
+            // User quit without connecting
+            break;
+        }
     }
 
     Ok(())
