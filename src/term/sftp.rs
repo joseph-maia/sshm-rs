@@ -265,7 +265,7 @@ impl SftpBrowser {
 
         let filename = remote_path.rsplit('/').next().unwrap_or("file");
 
-        let temp_dir = std::env::temp_dir().join("sshm-term");
+        let temp_dir = std::env::temp_dir().join("sshm-rs");
         tokio::fs::create_dir_all(&temp_dir).await?;
         use std::collections::hash_map::RandomState;
         use std::hash::{BuildHasher, Hasher};
