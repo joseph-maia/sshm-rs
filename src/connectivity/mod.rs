@@ -530,19 +530,6 @@ pub fn broadcast_command(hosts: &[&str], command: &str, config_file: Option<&str
     Ok(())
 }
 
-/// Launch the sshm-term companion app for integrated terminal + SFTP.
-/// Check if a program name can be found on PATH.
-fn which_exists(program: &str) -> bool {
-    std::env::var_os("PATH")
-        .map(|paths| {
-            std::env::split_paths(&paths).any(|dir| {
-                let candidate = dir.join(program);
-                candidate.is_file()
-            })
-        })
-        .unwrap_or(false)
-}
-
 pub fn launch_sshm_term(host: &str, config_file: Option<&str>) -> Result<()> {
     let config_path = match config_file {
         Some(p) => std::path::PathBuf::from(p),
@@ -550,120 +537,46 @@ pub fn launch_sshm_term(host: &str, config_file: Option<&str>) -> Result<()> {
     };
     let hosts = crate::config::parse_ssh_config(&config_path)?;
 
-    let mut cmd_args: Vec<String> = Vec::new();
-
-    if let Some(host_info) = hosts.iter().find(|h| h.name == host) {
+    let (hostname, user, port, identity, password) = if let Some(host_info) =
+        hosts.iter().find(|h| h.name == host)
+    {
         let hostname = if host_info.hostname.is_empty() {
-            &host_info.name
+            host_info.name.clone()
         } else {
-            &host_info.hostname
+            host_info.hostname.clone()
         };
         let user = if host_info.user.is_empty() {
             whoami::username()
         } else {
             host_info.user.clone()
         };
-        let port = if host_info.port.is_empty() || host_info.port == "22" {
+        let port: u16 = host_info.port.parse().unwrap_or(22);
+        let identity = if host_info.identity.is_empty() {
             None
         } else {
-            Some(host_info.port.as_str())
+            Some(std::path::PathBuf::from(&host_info.identity))
         };
-
-        cmd_args.push(format!("{}@{}", user, hostname));
-
-        if let Some(p) = port {
-            cmd_args.push("-p".to_string());
-            cmd_args.push(p.to_string());
-        }
-
-        if !host_info.identity.is_empty() {
-            cmd_args.push("-i".to_string());
-            cmd_args.push(host_info.identity.clone());
-        }
-
-        if let Some(password) = crate::credentials::get_password(host) {
-            // Pass password via env var (not CLI arg, which is visible in ps)
-            cmd_args.push("--password".to_string());
-
-            let current_exe = std::env::current_exe()?;
-            let exe_dir = current_exe.parent().unwrap_or(std::path::Path::new("."));
-
-            let sshm_term_path = if cfg!(windows) {
-                exe_dir.join("sshm-term.exe")
-            } else {
-                exe_dir.join("sshm-term")
-            };
-
-            let program = if sshm_term_path.exists() {
-                sshm_term_path.to_string_lossy().to_string()
-            } else {
-                // Check if sshm-term is on PATH
-                let fallback = "sshm-term".to_string();
-                if which_exists(&fallback) {
-                    fallback
-                } else {
-                    anyhow::bail!(
-                        "sshm-term binary not found. Install it with: cargo install --git https://github.com/bit5hift/sshm-rs --bin sshm-term"
-                    );
-                }
-            };
-
-            let mut cmd = std::process::Command::new(&program);
-            cmd.args(&cmd_args);
-            cmd.env("SSHM_PASSWORD", &password);
-
-            cmd.stdin(std::process::Stdio::inherit())
-                .stdout(std::process::Stdio::inherit())
-                .stderr(std::process::Stdio::inherit());
-
-            let status = cmd.status()?;
-
-            if !status.success() {
-                eprintln!("sshm-term exited with status: {}", status);
-            }
-
-            return Ok(());
-        }
+        let password = crate::credentials::get_password(host);
+        (hostname, user, port, identity, password)
     } else {
-        cmd_args.push(host.to_string());
-    }
-
-    let current_exe = std::env::current_exe()?;
-    let exe_dir = current_exe.parent().unwrap_or(std::path::Path::new("."));
-
-    let sshm_term_path = if cfg!(windows) {
-        exe_dir.join("sshm-term.exe")
-    } else {
-        exe_dir.join("sshm-term")
+        (host.to_string(), whoami::username(), 22, None, None)
     };
 
-    let program = if sshm_term_path.exists() {
-        sshm_term_path.to_string_lossy().to_string()
+    let auth = if let Some(key_path) = identity {
+        crate::term::ssh::Auth::PublicKey(key_path)
+    } else if password.is_some() {
+        crate::term::ssh::Auth::Password(password.clone().unwrap())
     } else {
-        let fallback = "sshm-term".to_string();
-        if which_exists(&fallback) {
-            fallback
-        } else {
-            anyhow::bail!(
-                "sshm-term binary not found. Install it with: cargo install --git https://github.com/bit5hift/sshm-rs --bin sshm-term"
-            );
-        }
+        crate::term::ssh::Auth::AutoDetect
     };
 
-    let mut cmd = std::process::Command::new(&program);
-    cmd.args(&cmd_args);
-
-    cmd.stdin(std::process::Stdio::inherit())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit());
-
-    let status = cmd.status()?;
-
-    if !status.success() {
-        eprintln!("sshm-term exited with status: {}", status);
-    }
-
-    Ok(())
+    crate::term::run_term_for_host(
+        hostname,
+        port,
+        user,
+        auth,
+        password,
+    )
 }
 
 #[cfg(test)]

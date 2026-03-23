@@ -67,9 +67,8 @@ jobs:
           TARGET=${{ matrix.target }}
           STAGING="sshm-rs-${VERSION}-${TARGET}"
           mkdir -p "${STAGING}"
-          cp "target/${TARGET}/release/sshm-rs"   "${STAGING}/"
-          cp "target/${TARGET}/release/sshm-term" "${STAGING}/"
-          tar -czf "${STAGING}.tar.gz" -C "${STAGING}" sshm-rs sshm-term
+          cp "target/${TARGET}/release/sshm-rs" "${STAGING}/"
+          tar -czf "${STAGING}.tar.gz" -C "${STAGING}" sshm-rs
           echo "ASSET=${STAGING}.tar.gz" >> "$GITHUB_ENV"
 
       - name: Package (Windows)
@@ -80,8 +79,7 @@ jobs:
           $target   = "${{ matrix.target }}"
           $staging  = "sshm-rs-${version}-${target}"
           New-Item -ItemType Directory -Force -Path $staging | Out-Null
-          Copy-Item "target\$target\release\sshm-rs.exe"   "$staging\"
-          Copy-Item "target\$target\release\sshm-term.exe" "$staging\"
+          Copy-Item "target\$target\release\sshm-rs.exe" "$staging\"
           Compress-Archive -Path "$staging\*" -DestinationPath "$staging.zip"
           "ASSET=$staging.zip" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 

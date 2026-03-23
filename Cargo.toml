@@ -12,10 +12,6 @@ default-run = "sshm-rs"
 name = "sshm-rs"
 path = "src/main.rs"
 
-[[bin]]
-name = "sshm-term"
-path = "src/bin/sshm-term/main.rs"
-
 [dependencies]
 # OpenSSL (vendored to avoid system dependency issues in CI)
 openssl = { version = "0.10", features = ["vendored"] }
@@ -53,7 +49,7 @@ ureq = { version = "3", features = ["json"] }
 semver = "1"
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "linux-native"] }
 
-# sshm-term: SSH terminal + SFTP browser companion binary
+# SSH terminal + SFTP browser (integrated term subcommand)
 russh = { version = "0.57", default-features = false, features = ["ring"] }
 russh-sftp = "2.1"
 tokio = { version = "1", features = ["full"] }

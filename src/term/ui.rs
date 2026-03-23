@@ -1,4 +1,4 @@
-use crate::{
+use super::{
     app::{App, ContextMenu, PanelFocus},
     sftp::SftpBrowser,
     terminal::TerminalPanelWidget,
@@ -11,7 +11,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
 };
-pub use crate::term_styles as styles;
+use super::styles as styles;
 
 fn file_icon(name: &str, is_dir: bool) -> (&'static str, Color) {
     if name == ".." {
@@ -371,7 +371,7 @@ fn render_context_menu(frame: &mut Frame, menu: &ContextMenu) {
 
 fn render_snippet_overlay(
     frame: &mut Frame,
-    overlay: &mut crate::snippets::SnippetOverlay,
+    overlay: &mut super::snippets::SnippetOverlay,
 ) {
     let area = frame.area();
     let width = ((area.width as f32 * 0.6) as u16).max(50).min(area.width);
@@ -385,13 +385,13 @@ fn render_snippet_overlay(
     frame.render_widget(Clear, overlay_rect);
 
     match overlay.mode {
-        crate::snippets::SnippetMode::Browse => {
+        super::snippets::SnippetMode::Browse => {
             render_snippet_browse(frame, overlay, overlay_rect);
         }
-        crate::snippets::SnippetMode::Add | crate::snippets::SnippetMode::Edit => {
+        super::snippets::SnippetMode::Add | super::snippets::SnippetMode::Edit => {
             render_snippet_form(frame, overlay, overlay_rect);
         }
-        crate::snippets::SnippetMode::ConfirmDelete => {
+        super::snippets::SnippetMode::ConfirmDelete => {
             render_snippet_delete(frame, overlay, overlay_rect);
         }
     }
@@ -399,7 +399,7 @@ fn render_snippet_overlay(
 
 fn render_snippet_browse(
     frame: &mut Frame,
-    overlay: &mut crate::snippets::SnippetOverlay,
+    overlay: &mut super::snippets::SnippetOverlay,
     area: Rect,
 ) {
     let layout = Layout::default()
@@ -545,7 +545,7 @@ fn render_snippet_browse(
 
 fn render_snippet_form(
     frame: &mut Frame,
-    overlay: &crate::snippets::SnippetOverlay,
+    overlay: &super::snippets::SnippetOverlay,
     area: Rect,
 ) {
     let form = match &overlay.form {
@@ -571,17 +571,17 @@ fn render_snippet_form(
         (
             "Name:        ",
             &form.name,
-            crate::snippets::AddFormField::Name,
+            super::snippets::AddFormField::Name,
         ),
         (
             "Command:     ",
             &form.command,
-            crate::snippets::AddFormField::Command,
+            super::snippets::AddFormField::Command,
         ),
         (
             "Description: ",
             &form.description,
-            crate::snippets::AddFormField::Description,
+            super::snippets::AddFormField::Description,
         ),
     ];
 
@@ -625,7 +625,7 @@ fn render_snippet_form(
 
 fn render_snippet_delete(
     frame: &mut Frame,
-    overlay: &crate::snippets::SnippetOverlay,
+    overlay: &super::snippets::SnippetOverlay,
     area: Rect,
 ) {
     let name = overlay
@@ -681,7 +681,7 @@ fn render_status(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
     // Render transfer progress rows
     if let Some(t_area) = transfer_area {
-        let active: Vec<&crate::transfer::TransferInfo> = app.transfers.active_transfers();
+        let active: Vec<&super::transfer::TransferInfo> = app.transfers.active_transfers();
         for (i, info) in active.iter().take(3).enumerate() {
             let row = Rect::new(t_area.x, t_area.y + i as u16, t_area.width, 1);
             render_transfer_row(frame, info, row);
@@ -742,7 +742,7 @@ fn render_status(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     frame.render_widget(paragraph, keys_area);
 }
 
-fn render_transfer_row(frame: &mut Frame, info: &crate::transfer::TransferInfo, area: Rect) {
+fn render_transfer_row(frame: &mut Frame, info: &super::transfer::TransferInfo, area: Rect) {
     let width = area.width as usize;
     if width < 20 {
         return;

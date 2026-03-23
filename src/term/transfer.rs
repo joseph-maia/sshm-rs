@@ -8,7 +8,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 
-use crate::event::{Event, TransferState, TransferUpdate};
+use super::event::{Event, TransferState, TransferUpdate};
 
 const CHUNK_SIZE: usize = 256 * 1024; // 256 KB
 const PROGRESS_THROTTLE_MS: u128 = 100;

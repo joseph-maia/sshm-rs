@@ -1,4 +1,4 @@
-use crate::{sftp::SftpBrowser, ssh::{Auth, SshConnection}, terminal::TerminalPanel, transfer::TransferManager};
+use super::{sftp::SftpBrowser, ssh::{Auth, SshConnection}, terminal::TerminalPanel, transfer::TransferManager};
 use anyhow::Result;
 use ratatui::widgets::ListState;
 use std::time::Instant;
@@ -61,15 +61,15 @@ pub struct App {
     pub context_menu: Option<ContextMenu>,
     pub confirm_delete: Option<(String, bool)>, // (remote_path, is_dir)
     pub frame_area: ratatui::layout::Rect,
-    pub snippet_overlay: Option<crate::snippets::SnippetOverlay>,
-    pub event_tx: UnboundedSender<crate::event::Event>,
+    pub snippet_overlay: Option<super::snippets::SnippetOverlay>,
+    pub event_tx: UnboundedSender<super::event::Event>,
     pub transfers: TransferManager,
     last_click: Option<(usize, Instant)>,
     last_snippet_click: Option<(usize, Instant)>,
 }
 
 impl App {
-    pub fn new(host: String, port: u16, user: String, auth: Auth, event_tx: UnboundedSender<crate::event::Event>) -> Self {
+    pub fn new(host: String, port: u16, user: String, auth: Auth, event_tx: UnboundedSender<super::event::Event>) -> Self {
         Self {
             host,
             port,
@@ -158,7 +158,7 @@ impl App {
             ContextAction::Edit => {
                 if let Some(entry) = self.sftp.entries.get(self.sftp.selected_index) {
                     if !entry.is_dir {
-                        let remote_path = crate::sftp::posix_join(&self.sftp.current_path, &entry.name);
+                        let remote_path = super::sftp::posix_join(&self.sftp.current_path, &entry.name);
                         self.pending_edit = Some(remote_path);
                     }
                 }
@@ -170,7 +170,7 @@ impl App {
                             self.status_message = "Max 3 concurrent transfers — wait for one to finish".to_string();
                             return Ok(());
                         }
-                        let remote_path = crate::sftp::posix_join(&self.sftp.current_path, &entry.name);
+                        let remote_path = super::sftp::posix_join(&self.sftp.current_path, &entry.name);
                         let filename = entry.name.clone();
                         let total_bytes = entry.size;
                         let download_dir = get_download_dir();
@@ -181,12 +181,12 @@ impl App {
                             let id = self.transfers.start_transfer(
                                 filename.clone(),
                                 total_bytes,
-                                crate::transfer::TransferDirection::Download,
+                                super::transfer::TransferDirection::Download,
                                 cancel.clone(),
                             );
                             self.sftp.last_download_path = Some(download_dir.clone());
                             self.status_message = format!("Downloading {}...", filename);
-                            crate::transfer::spawn_download(
+                            super::transfer::spawn_download(
                                 sftp_arc,
                                 remote_path,
                                 local_path,
@@ -203,13 +203,13 @@ impl App {
             ContextAction::Open => {
                 if let Some(entry) = self.sftp.entries.get(self.sftp.selected_index) {
                     if entry.is_dir && entry.name != ".." {
-                        let new_path = crate::sftp::posix_join(&self.sftp.current_path, &entry.name);
+                        let new_path = super::sftp::posix_join(&self.sftp.current_path, &entry.name);
                         self.sftp.navigate_to(new_path).await?;
                     }
                 }
             }
             ContextAction::GoUp => {
-                if let Some(parent) = crate::sftp::posix_parent(&self.sftp.current_path) {
+                if let Some(parent) = super::sftp::posix_parent(&self.sftp.current_path) {
                     self.sftp.navigate_to(parent).await?;
                 }
             }
@@ -240,7 +240,7 @@ impl App {
             ContextAction::Delete => {
                 if let Some(entry) = self.sftp.entries.get(self.sftp.selected_index) {
                     if entry.name != ".." {
-                        let remote_path = crate::sftp::posix_join(&self.sftp.current_path, &entry.name);
+                        let remote_path = super::sftp::posix_join(&self.sftp.current_path, &entry.name);
                         let name = entry.name.clone();
                         self.confirm_delete = Some((remote_path, entry.is_dir));
                         self.status_message = format!("Delete {}? (y/n)", name);
@@ -266,7 +266,7 @@ impl App {
                                         let id = self.transfers.start_transfer(
                                             archive_name.clone(),
                                             0,
-                                            crate::transfer::TransferDirection::Download,
+                                            super::transfer::TransferDirection::Download,
                                             cancel.clone(),
                                         );
                                         self.sftp.last_download_path = Some(download_dir.clone());
@@ -274,7 +274,7 @@ impl App {
 
                                         let tx = self.event_tx.clone();
                                         // Spawn download; on completion, delete remote archive
-                                        tokio::spawn(crate::transfer::spawn_download_and_cleanup(
+                                        tokio::spawn(super::transfer::spawn_download_and_cleanup(
                                             sftp_arc,
                                             archive_path,
                                             local_path,
@@ -302,9 +302,9 @@ impl App {
         Ok(())
     }
 
-    pub async fn handle_event(&mut self, event: crate::event::Event) -> Result<()> {
+    pub async fn handle_event(&mut self, event: super::event::Event) -> Result<()> {
         use crossterm::event::{KeyCode, KeyModifiers, MouseButton, MouseEventKind};
-        use crate::event::Event;
+        use super::event::Event;
 
         // Context menu intercepts all input when visible
         if self.context_menu.is_some() {
@@ -502,8 +502,8 @@ impl App {
                     return Ok(());
                 }
                 if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('p') {
-                    let snippets = crate::snippets::load_snippets();
-                    self.snippet_overlay = Some(crate::snippets::SnippetOverlay::new(snippets));
+                    let snippets = super::snippets::load_snippets();
+                    self.snippet_overlay = Some(super::snippets::SnippetOverlay::new(snippets));
                     return Ok(());
                 }
                 if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('x') {
@@ -595,7 +595,7 @@ impl App {
                                         {
                                             if entry.name == ".." {
                                                 if let Some(parent) =
-                                                    crate::sftp::posix_parent(&self.sftp.current_path)
+                                                    super::sftp::posix_parent(&self.sftp.current_path)
                                                 {
                                                     self.sftp
                                                         .navigate_to(parent)
@@ -603,7 +603,7 @@ impl App {
                                                 }
                                             } else if entry.is_dir {
                                                 let new_path =
-                                                    crate::sftp::posix_join(&self.sftp.current_path, &entry.name);
+                                                    super::sftp::posix_join(&self.sftp.current_path, &entry.name);
                                                 self.sftp.navigate_to(new_path).await?;
                                             }
                                         }
@@ -709,7 +709,7 @@ impl App {
                 }
             }
             Event::TransferProgress(update) => {
-                use crate::event::TransferState;
+                use super::event::TransferState;
                 match update.state {
                     TransferState::Progress { bytes_transferred } => {
                         self.transfers.update_progress(update.id, bytes_transferred);
@@ -720,9 +720,9 @@ impl App {
                             let direction = info.direction;
                             let local_path_hint = self.sftp.last_download_path.clone();
                             self.transfers.complete_transfer(update.id, total_bytes);
-                            let size_str = crate::sftp::SftpBrowser::format_size(total_bytes);
+                            let size_str = super::sftp::SftpBrowser::format_size(total_bytes);
                             match direction {
-                                crate::transfer::TransferDirection::Download => {
+                                super::transfer::TransferDirection::Download => {
                                     self.status_message = format!(
                                         "Downloaded {} ({})",
                                         filename, size_str
@@ -732,7 +732,7 @@ impl App {
                                     }
                                     let _ = self.sftp.list_directory().await;
                                 }
-                                crate::transfer::TransferDirection::Upload => {
+                                super::transfer::TransferDirection::Upload => {
                                     self.status_message = format!(
                                         "Uploaded {} ({})",
                                         filename, size_str
@@ -780,7 +780,7 @@ impl App {
         };
 
         match overlay.mode {
-            crate::snippets::SnippetMode::Browse => {
+            super::snippets::SnippetMode::Browse => {
                 match key.code {
                     KeyCode::Esc => {
                         self.snippet_overlay = None;
@@ -810,29 +810,29 @@ impl App {
                     }
                     KeyCode::Char('a') if key.modifiers.is_empty() => {
                         if let Some(o) = self.snippet_overlay.as_mut() {
-                            o.mode = crate::snippets::SnippetMode::Add;
-                            o.form = Some(crate::snippets::AddForm::new());
+                            o.mode = super::snippets::SnippetMode::Add;
+                            o.form = Some(super::snippets::AddForm::new());
                         }
                     }
                     KeyCode::Char('e') if key.modifiers.is_empty() => {
                         if let Some(o) = self.snippet_overlay.as_mut() {
                             if let Some(&idx) = o.filtered_indices.get(o.selected_index) {
                                 let s = &o.snippets[idx];
-                                let form = crate::snippets::AddForm::from_snippet(
+                                let form = super::snippets::AddForm::from_snippet(
                                     idx,
                                     &s.name,
                                     &s.command,
                                     &s.description,
                                 );
                                 o.form = Some(form);
-                                o.mode = crate::snippets::SnippetMode::Edit;
+                                o.mode = super::snippets::SnippetMode::Edit;
                             }
                         }
                     }
                     KeyCode::Char('d') if key.modifiers.is_empty() => {
                         if let Some(o) = self.snippet_overlay.as_mut() {
                             if o.selected_snippet().is_some() {
-                                o.mode = crate::snippets::SnippetMode::ConfirmDelete;
+                                o.mode = super::snippets::SnippetMode::ConfirmDelete;
                             }
                         }
                     }
@@ -854,12 +854,12 @@ impl App {
                     _ => {}
                 }
             }
-            crate::snippets::SnippetMode::Add | crate::snippets::SnippetMode::Edit => {
+            super::snippets::SnippetMode::Add | super::snippets::SnippetMode::Edit => {
                 match key.code {
                     KeyCode::Esc => {
                         if let Some(o) = self.snippet_overlay.as_mut() {
                             o.form = None;
-                            o.mode = crate::snippets::SnippetMode::Browse;
+                            o.mode = super::snippets::SnippetMode::Browse;
                         }
                     }
                     KeyCode::Tab => {
@@ -890,7 +890,7 @@ impl App {
                                         self.status_message =
                                             format!("Updated: {}", form.name);
                                     } else {
-                                        let new_snippet = crate::snippets::Snippet {
+                                        let new_snippet = super::snippets::Snippet {
                                             name: form.name.clone(),
                                             command: form.command.clone(),
                                             description: desc,
@@ -899,10 +899,10 @@ impl App {
                                         self.status_message =
                                             format!("Added: {}", form.name);
                                     }
-                                    crate::snippets::save_snippets(&o.snippets);
+                                    super::snippets::save_snippets(&o.snippets);
                                     o.update_filter();
                                 }
-                                o.mode = crate::snippets::SnippetMode::Browse;
+                                o.mode = super::snippets::SnippetMode::Browse;
                             }
                         }
                     }
@@ -923,23 +923,23 @@ impl App {
                     _ => {}
                 }
             }
-            crate::snippets::SnippetMode::ConfirmDelete => {
+            super::snippets::SnippetMode::ConfirmDelete => {
                 match key.code {
                     KeyCode::Char('y') | KeyCode::Char('Y') => {
                         if let Some(o) = self.snippet_overlay.as_mut() {
                             if let Some(&idx) = o.filtered_indices.get(o.selected_index) {
                                 let name = o.snippets[idx].name.clone();
                                 o.snippets.remove(idx);
-                                crate::snippets::save_snippets(&o.snippets);
+                                super::snippets::save_snippets(&o.snippets);
                                 o.update_filter();
                                 self.status_message = format!("Deleted: {}", name);
                             }
-                            o.mode = crate::snippets::SnippetMode::Browse;
+                            o.mode = super::snippets::SnippetMode::Browse;
                         }
                     }
                     _ => {
                         if let Some(o) = self.snippet_overlay.as_mut() {
-                            o.mode = crate::snippets::SnippetMode::Browse;
+                            o.mode = super::snippets::SnippetMode::Browse;
                         }
                     }
                 }
@@ -959,7 +959,7 @@ impl App {
             None => return Ok(()),
         };
 
-        if overlay.mode != crate::snippets::SnippetMode::Browse {
+        if overlay.mode != super::snippets::SnippetMode::Browse {
             return Ok(());
         }
 
@@ -1043,14 +1043,14 @@ impl App {
                             overlay.selected_index = clicked_index;
                             if let Some(&idx) = overlay.filtered_indices.get(clicked_index) {
                                 let s = &overlay.snippets[idx];
-                                let form = crate::snippets::AddForm::from_snippet(
+                                let form = super::snippets::AddForm::from_snippet(
                                     idx,
                                     &s.name,
                                     &s.command,
                                     &s.description,
                                 );
                                 overlay.form = Some(form);
-                                overlay.mode = crate::snippets::SnippetMode::Edit;
+                                overlay.mode = super::snippets::SnippetMode::Edit;
                             }
                         }
                     }
@@ -1095,7 +1095,7 @@ fn shell_escape(s: &str) -> String {
 /// Create an archive of a remote directory. Tries `zip` first, falls back to `tar.gz`.
 /// Returns (archive_remote_path, archive_filename).
 async fn create_remote_archive(
-    ssh: &crate::ssh::SshConnection,
+    ssh: &super::ssh::SshConnection,
     parent_dir: &str,
     dir_name: &str,
 ) -> Result<(String, String)> {
@@ -1121,7 +1121,7 @@ async fn create_remote_archive(
         (name, c)
     };
 
-    let archive_path = crate::sftp::posix_join(parent_dir, &archive_name);
+    let archive_path = super::sftp::posix_join(parent_dir, &archive_name);
     ssh.exec_command(&cmd).await?;
 
     // Verify the archive was actually created

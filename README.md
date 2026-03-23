@@ -52,7 +52,7 @@ A beautiful and performant TUI SSH connection manager written in Rust, with inte
 - **Copy to Clipboard** — Quick copy host information for use elsewhere
 - **Cross-platform** — Windows, Linux, macOS
 
-### sshm-term (SSH Terminal + SFTP Browser)
+### sshm-rs term (SSH Terminal + SFTP Browser)
 
 - **SSH Terminal** — Full interactive terminal with pseudo-TTY support
 - **SFTP Browser** — Integrated file browser for remote filesystem navigation
@@ -137,22 +137,22 @@ sshm-rs validate
 sshm-rs completions bash > sshm-rs.bash
 ```
 
-### sshm-term (SSH Terminal)
+### sshm-rs term (SSH Terminal)
 
-Launched from sshm-rs with `W` key or standalone:
+The `term` subcommand launches an SSH terminal with integrated SFTP browser. You can access it from sshm-rs with the `W` key or run it directly:
 
 ```bash
 # SSH terminal with SFTP browser
-sshm-term user@host
+sshm-rs term user@host
 
 # Connect to specific port
-sshm-term user@host --port 2222
+sshm-rs term user@host --port 2222
 
 # Use specific key
-sshm-term user@host --key ~/.ssh/id_rsa
+sshm-rs term user@host --key ~/.ssh/id_rsa
 
 # Prompt for password
-sshm-term user@host --password
+sshm-rs term user@host --password
 ```
 
 ## Keybindings
@@ -210,7 +210,7 @@ sshm-term user@host --password
 |-----|--------|
 | `x` | Quick SFTP session |
 | `X` | SCP file transfer |
-| `W` | Open with sshm-term (terminal + SFTP) |
+| `W` | Open with sshm-rs term (terminal + SFTP) |
 
 #### System
 
@@ -219,7 +219,7 @@ sshm-term user@host --password
 | `?` / `h` | Show keybindings |
 | `q` | Quit |
 
-### sshm-term Keybindings
+### sshm-rs term Keybindings
 
 #### Global
 
@@ -335,7 +335,7 @@ Save command snippets in `snippets.json`:
 ]
 ```
 
-Accessed via `S` in sshm-rs or `Ctrl+P` in sshm-term.
+Accessed via `S` in sshm-rs or `Ctrl+P` in sshm-rs term.
 
 #### Themes
 
@@ -377,7 +377,7 @@ Set a password for a host with `p` in the host list, then sshm-rs will use it au
 
 ### Trust on First Use (TOFU)
 
-sshm-term implements TOFU for SSH host key verification:
+sshm-rs term implements TOFU for SSH host key verification:
 - First connection to a new host automatically trusts the server key (TOFU)
 - Key mismatches are rejected with a warning
 
@@ -449,14 +449,14 @@ If `sshm-rs.exe` is locked after execution:
 
 ### SFTP unavailable
 
-If sshm-term shows "SFTP unavailable":
+If sshm-rs term shows "SFTP unavailable":
 - Ensure the remote server has `/usr/lib/sftp-server` or equivalent
 - Some restricted shells or environments may not support SFTP
 - Check server logs for SFTP subsystem errors
 
 ### Host key changed warning
 
-If sshm-term warns "host key changed":
+If sshm-rs term warns "host key changed":
 - Verify the server hasn't been compromised
 - If you know the host key changed (server maintenance), remove the entry from `~/.ssh/known_hosts`
 - Reconnect to accept the new key

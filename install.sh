@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — Install sshm-rs and sshm-term from the latest GitHub release.
+# install.sh — Install sshm-rs from the latest GitHub release.
 # Usage: curl -fsSL https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.sh | bash
 
 set -euo pipefail
@@ -146,7 +146,7 @@ main() {
     unzip -o -j "${tmp_dir}/${archive_name}" -d "${bin_dir}"
   else
     tar -xzf "${tmp_dir}/${archive_name}" -C "${bin_dir}"
-    chmod +x "${bin_dir}/sshm-rs" "${bin_dir}/sshm-term"
+    chmod +x "${bin_dir}/sshm-rs"
   fi
 
   ok "sshm-rs ${version} installed to ${bin_dir}/"

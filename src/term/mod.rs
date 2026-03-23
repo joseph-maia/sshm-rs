@@ -1,24 +1,19 @@
-mod app;
+pub mod app;
 mod event;
-mod sftp;
+pub mod sftp;
 mod snippets;
-mod ssh;
+pub mod ssh;
 mod terminal;
 mod transfer;
 mod ui;
 
-#[allow(unused_imports, dead_code)]
-#[path = "../../config/mod.rs"]
-mod config;
-#[allow(dead_code)]
-#[path = "../../theme.rs"]
-mod theme;
-#[path = "../../ui/styles.rs"]
-pub mod term_styles;
+// Re-export styles from main crate for term UI
+pub(crate) mod styles {
+    pub use crate::ui::styles::*;
+}
 
 use anyhow::Result;
 use app::App;
-use clap::Parser;
 use crossterm::{
     event::{DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture},
     execute,
@@ -29,30 +24,14 @@ use russh::ChannelMsg;
 use ssh::Auth;
 use std::{io, path::PathBuf};
 
-#[derive(Parser, Debug)]
-#[command(name = "sshm-term", about = "SSH terminal and SFTP browser")]
-struct Args {
-    /// Remote host (user@host or host)
+/// Called from CLI: `sshm-rs term user@host -p 22`
+pub fn run_term(
     host: String,
-
-    /// Remote port
-    #[arg(short, long, default_value_t = 22)]
     port: u16,
-
-    /// SSH user (overrides user@host syntax)
-    #[arg(short, long)]
     user: Option<String>,
-
-    /// Path to private key file
-    #[arg(short = 'i', long)]
     key: Option<PathBuf>,
-
-    /// Prompt for password authentication
-    #[arg(long)]
     password: bool,
-}
-
-fn main() -> Result<()> {
+) -> Result<()> {
     // SAFETY: Read and clear SSHM_PASSWORD before the tokio runtime starts any
     // worker threads. std::env::remove_var is unsound when called concurrently
     // with other env reads; doing it here, before tokio::Runtime::new(), ensures
@@ -63,46 +42,103 @@ fn main() -> Result<()> {
         unsafe { std::env::remove_var("SSHM_PASSWORD") };
     }
 
-    tokio::runtime::Runtime::new()?.block_on(async_main(env_password))
+    tokio::runtime::Runtime::new()?.block_on(async move {
+        let (parsed_user, parsed_host) = parse_target(&host, &user);
+
+        let auth = if let Some(key_path) = key {
+            Auth::PublicKey(key_path)
+        } else if password {
+            let pw = if let Some(pw) = env_password {
+                pw
+            } else {
+                rpassword::prompt_password(format!("{}@{}'s password: ", parsed_user, parsed_host))
+                    .map_err(|e| anyhow::anyhow!("Failed to read password: {}", e))?
+            };
+            Auth::Password(pw)
+        } else {
+            Auth::AutoDetect
+        };
+
+        let theme = crate::theme::Theme::load();
+        crate::ui::styles::init_theme(theme);
+
+        enable_raw_mode()?;
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture, EnableBracketedPaste)?;
+        let backend = CrosstermBackend::new(stdout);
+        let mut term = Terminal::new(backend)?;
+
+        let result = run(&mut term, parsed_host, port, parsed_user, auth).await;
+
+        disable_raw_mode()?;
+        execute!(
+            term.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture,
+            DisableBracketedPaste
+        )?;
+        term.show_cursor()?;
+
+        result
+    })
 }
 
-async fn async_main(env_password: Option<String>) -> Result<()> {
-    let args = Args::parse();
+/// Called in-process from TUI via connectivity module
+pub fn run_term_for_host(
+    host: String,
+    port: u16,
+    user: String,
+    auth: ssh::Auth,
+    password: Option<String>,
+) -> Result<()> {
+    // SAFETY: Read and clear SSHM_PASSWORD before the tokio runtime starts any
+    // worker threads. std::env::remove_var is unsound when called concurrently
+    // with other env reads; doing it here, before tokio::Runtime::new(), ensures
+    // no other threads exist yet.
+    let env_password = std::env::var("SSHM_PASSWORD").ok();
+    if env_password.is_some() {
+        // SAFETY: No threads are running at this point.
+        unsafe { std::env::remove_var("SSHM_PASSWORD") };
+    }
 
-    let (user, host) = parse_target(&args.host, &args.user);
+    // Use the explicitly provided password (from credentials store) if available,
+    // falling back to the env var password.
+    let resolved_password = password.or(env_password);
 
-    let auth = if let Some(key_path) = args.key {
-        Auth::PublicKey(key_path)
-    } else if args.password {
-        // Use password from env (already read and cleared before runtime started),
-        // or prompt interactively if it was not set.
-        let pw = if let Some(pw) = env_password {
-            pw
-        } else {
-            rpassword::prompt_password(format!("{}@{}'s password: ", user, host))
-                .map_err(|e| anyhow::anyhow!("Failed to read password: {}", e))?
-        };
-        Auth::Password(pw)
-    } else {
-        Auth::AutoDetect
+    let auth = match auth {
+        ssh::Auth::Password(_) => {
+            if let Some(pw) = resolved_password {
+                ssh::Auth::Password(pw)
+            } else {
+                auth
+            }
+        }
+        other => other,
     };
 
-    let theme = theme::Theme::load();
-    term_styles::init_theme(theme);
+    let theme = crate::theme::Theme::load();
+    crate::ui::styles::init_theme(theme);
 
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture, EnableBracketedPaste)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut term = Terminal::new(backend)?;
+    tokio::runtime::Runtime::new()?.block_on(async move {
+        enable_raw_mode()?;
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture, EnableBracketedPaste)?;
+        let backend = CrosstermBackend::new(stdout);
+        let mut term = Terminal::new(backend)?;
 
-    let result = run(&mut term, host, args.port, user, auth).await;
+        let result = run(&mut term, host, port, user, auth).await;
 
-    disable_raw_mode()?;
-    execute!(term.backend_mut(), LeaveAlternateScreen, DisableMouseCapture, DisableBracketedPaste)?;
-    term.show_cursor()?;
+        disable_raw_mode()?;
+        execute!(
+            term.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture,
+            DisableBracketedPaste
+        )?;
+        term.show_cursor()?;
 
-    result
+        result
+    })
 }
 
 async fn run(
@@ -336,7 +372,6 @@ out"#])
             None => vec![],
         }
     } else {
-        // Try zenity with --multiple, then kdialog, then stdin fallback
         let zenity = std::process::Command::new("zenity")
             .args(["--file-selection", "--title=Select files to upload", "--multiple", "--separator=\n"])
             .output();
@@ -359,7 +394,6 @@ out"#])
                 .map(std::path::PathBuf::from)
                 .collect()
         } else {
-            println!("Enter local file paths to upload, one per line (empty line to finish):");
             let mut paths = vec![];
             loop {
                 let mut input = String::new();

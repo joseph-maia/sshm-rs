@@ -168,7 +168,7 @@ pub fn draw(f: &mut Frame, area: Rect) {
         ]),
         Line::from(vec![
             Span::styled("  W        ", key_style),
-            Span::styled("Open with sshm-term (terminal + SFTP)", desc_style),
+            Span::styled("Open terminal + SFTP", desc_style),
         ]),
         Line::from(""),
         // System

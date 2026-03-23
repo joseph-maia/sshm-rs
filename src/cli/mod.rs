@@ -83,6 +83,23 @@ pub enum Commands {
     },
     /// Download the latest version of sshm-rs
     Update,
+    /// Open SSH terminal with integrated SFTP browser
+    Term {
+        /// Remote host (user@host or host)
+        host: String,
+        /// Remote port
+        #[arg(short, long, default_value_t = 22)]
+        port: u16,
+        /// SSH user (overrides user@host syntax)
+        #[arg(short, long)]
+        user: Option<String>,
+        /// Path to private key file
+        #[arg(short = 'i', long)]
+        key: Option<std::path::PathBuf>,
+        /// Prompt for password authentication
+        #[arg(long)]
+        password: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -129,6 +146,9 @@ pub fn run(cli: Cli) -> Result<()> {
                 "Check https://github.com/bit5hift/sshm-rs/releases for the latest version.\nTo update: cargo install --git https://github.com/bit5hift/sshm-rs --force"
             );
             Ok(())
+        }
+        Some(Commands::Term { host, port, user, key, password }) => {
+            crate::term::run_term(host, port, user, key, password)
         }
         None => {
             if let Some(host_name) = cli.host {

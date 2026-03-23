@@ -1,4 +1,4 @@
-# install.ps1 — Install sshm-rs and sshm-term from the latest GitHub release on Windows.
+# install.ps1 — Install sshm-rs from the latest GitHub release on Windows.
 # Usage: irm https://raw.githubusercontent.com/bit5hift/sshm-rs/master/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
@@ -48,7 +48,7 @@ New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 Expand-Archive -Path $archivePath -DestinationPath $tmpDir -Force
 
 # Copy binaries
-$extractedFiles = Get-ChildItem -Path $tmpDir -Recurse -Include "sshm-rs.exe", "sshm-term.exe"
+$extractedFiles = Get-ChildItem -Path $tmpDir -Recurse -Include "sshm-rs.exe"
 foreach ($file in $extractedFiles) {
     Copy-Item -Path $file.FullName -Destination $installDir -Force
 }

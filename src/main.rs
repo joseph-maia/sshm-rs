@@ -6,6 +6,7 @@ mod favorites;
 mod groups;
 mod history;
 mod snippets;
+mod term;
 mod theme;
 mod ui;
 mod update;
