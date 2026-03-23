@@ -175,6 +175,7 @@ pub struct App {
     // Toast/flash message
     pub toast_message: Option<String>,
     pub toast_expires: Option<Instant>,
+    pub toast_is_error: bool,
 
     // Mouse hover
     pub hovered_index: Option<usize>,
@@ -269,6 +270,7 @@ impl App {
             password_target: None,
             toast_message: None,
             toast_expires: None,
+            toast_is_error: false,
             hovered_index: None,
             last_click_time: None,
             last_click_index: None,
@@ -351,6 +353,13 @@ impl App {
     pub fn show_toast(&mut self, msg: &str) {
         self.toast_message = Some(msg.to_string());
         self.toast_expires = Some(Instant::now() + Duration::from_secs(3));
+        self.toast_is_error = false;
+    }
+
+    pub fn show_toast_error(&mut self, msg: &str) {
+        self.toast_message = Some(msg.to_string());
+        self.toast_expires = Some(Instant::now() + Duration::from_secs(3));
+        self.toast_is_error = true;
     }
 
     pub fn check_toast(&mut self) {

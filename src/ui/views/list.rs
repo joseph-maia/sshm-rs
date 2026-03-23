@@ -412,7 +412,8 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
 
     let left_spans: Vec<Span> = if show_toast {
         let msg = format!(" {} ", app.toast_message.as_deref().unwrap_or(""));
-        vec![Span::styled(msg, Style::default().fg(styles::green()))]
+        let color = if app.toast_is_error { styles::red() } else { styles::green() };
+        vec![Span::styled(msg, Style::default().fg(color))]
     } else if app.search_mode {
         vec![
             Span::styled(" Type to filter ", desc_style),

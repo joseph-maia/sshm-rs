@@ -81,8 +81,16 @@ pub fn run_tui() -> Result<()> {
                 }
                 Ok(None) => break,
                 Err(e) => {
-                    // Connection failed — show the error in the TUI and retry
-                    app.show_toast(&format!("Connection failed: {e}"));
+                    // Terminal is now in normal mode — safe to prompt for password
+                    eprintln!("Connection failed: {e}");
+                    if let Some(host_name) = action.strip_prefix("__sshm_term__:") {
+                        if let Ok(new_password) = rpassword::prompt_password("Password: ") {
+                            if !new_password.is_empty() {
+                                let _ = crate::credentials::save_password(host_name, &new_password);
+                            }
+                        }
+                    }
+                    app.show_toast_error(&format!("Connection failed: {e}"));
                     continue;
                 }
             }
